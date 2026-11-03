@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { clipboardFiles, fileSrc, openPath, startFileDrag } from "../../lib/native";
+import { useEffect, useState } from "react";
+import { clipboardFiles, fileSrc, openPath, prepareDrag, setHitRect, startFileDrag } from "../../lib/native";
 import { addPaths, addText, clearShelf, IMAGE_EXT, removePaths, shelf, type ShelfItem } from "../../lib/shelf";
 import { Ico } from "../icons";
 
@@ -25,7 +25,7 @@ function Thumb({ item }: { item: ShelfItem }) {
 
 export default function ShelfPage() {
   const { items, selected, dragging } = shelf.use();
-  const down = useRef<{ x: number; y: number; path: string } | null>(null);
+  useEffect(() => { prepareDrag(); }, []);
   const [flash, setFlash] = useState("");
   const say = (t: string) => { setFlash(t); setTimeout(() => setFlash(""), 1600); };
 
@@ -64,16 +64,18 @@ export default function ShelfPage() {
     } else openPath(it.path);
   };
 
-  const move = (e: React.MouseEvent) => {
-    const d = down.current;
-    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
-    down.current = null;
-    const paths = selected.includes(d.path) ? selected : [d.path];
-    startFileDrag(paths);
+  // Arrastrar hacia fuera: el notch deja de ser "destino" mientras dura, para que
+  // no se quede con el arrastre (eso mostraba el cursor de prohibido).
+  const dragOut = async (e: React.DragEvent, it: ShelfItem) => {
+    e.preventDefault();
+    const paths = selected.includes(it.path) ? selected : [it.path];
+    shelf.set({ outgoing: true, dragging: false });
+    setHitRect({ x: 0, y: 0, w: 0, h: 0, hold: false });
+    try { await startFileDrag(paths); } finally { setTimeout(() => shelf.set({ outgoing: false }), 300); }
   };
 
   return (
-    <div className="shelf" onMouseMove={move} onMouseUp={() => (down.current = null)}>
+    <div className="shelf">
       <div className="pg-head">
         <strong>Estante <span className="muted">{items.length || ""}</span>{flash && <span className="flash">{flash}</span>}</strong>
         <div className="row">
@@ -92,7 +94,7 @@ export default function ShelfPage() {
         <div className="tiles scroll" onWheel={(e) => { e.currentTarget.scrollLeft += e.deltaY; }}>
           {items.map((it) => (
             <button key={it.path} className={`tile ${selected.includes(it.path) ? "sel" : ""}`} title={it.text ?? it.path}
-              onMouseDown={(e) => { if (e.button === 0) down.current = { x: e.clientX, y: e.clientY, path: it.path }; }}
+              draggable onDragStart={(e) => dragOut(e, it)}
               onClick={(e) => click(e, it)}
               onContextMenu={(e) => { e.preventDefault(); removePaths([it.path]); }}>
               <Thumb item={it} />

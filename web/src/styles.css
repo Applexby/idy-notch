@@ -94,7 +94,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .danger-text { color: var(--red); }
 .link { color: var(--accent); font-size: 16px; }
 .link.strong { font-weight: 650; }
-.link.danger { color: var(--red); font-size: 14px; margin: 4px 0 10px; }
+.link.danger { color: var(--red); font-size: 14px; margin: 4px 0 10px; display: inline-flex; align-items: center; gap: 6px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 99px; background: var(--card-2); font-size: 13.5px; font-weight: 550; white-space: nowrap; }
 .pill:active { transform: scale(.95); }
 .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); flex: none; }

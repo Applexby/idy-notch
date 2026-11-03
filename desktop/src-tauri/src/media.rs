@@ -152,6 +152,62 @@ mod imp {
     }
 }
 
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct Volume {
+    pub level: f32,
+    pub muted: bool,
+}
+
+#[cfg(windows)]
+mod vol {
+    use super::Volume;
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+    use windows::Win32::Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+
+    fn endpoint() -> windows::core::Result<IAudioEndpointVolume> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+            let dev = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
+            dev.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)
+        }
+    }
+
+    pub fn get() -> windows::core::Result<Volume> {
+        let ep = endpoint()?;
+        unsafe { Ok(Volume { level: ep.GetMasterVolumeLevelScalar()?, muted: ep.GetMute()?.as_bool() }) }
+    }
+
+    pub fn set(level: f32) -> windows::core::Result<()> {
+        let ep = endpoint()?;
+        unsafe {
+            ep.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), std::ptr::null())?;
+            if level > 0.0 {
+                let _ = ep.SetMute(windows::Win32::Foundation::BOOL::from(false), std::ptr::null());
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+pub fn get_volume() -> Result<Volume, String> {
+    vol::get().map_err(|e| e.to_string())
+}
+#[cfg(windows)]
+pub fn set_volume(level: f32) -> Result<(), String> {
+    vol::set(level).map_err(|e| e.to_string())
+}
+#[cfg(not(windows))]
+pub fn get_volume() -> Result<Volume, String> {
+    Ok(Volume { level: 0.5, muted: false })
+}
+#[cfg(not(windows))]
+pub fn set_volume(_level: f32) -> Result<(), String> {
+    Ok(())
+}
+
 #[cfg(windows)]
 pub fn spawn_watch(app: AppHandle) {
     imp::spawn_watch(app)

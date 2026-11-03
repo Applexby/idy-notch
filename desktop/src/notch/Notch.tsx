@@ -21,7 +21,7 @@ interface Hud { id: number; icon: string; color: string; title: string; sub?: st
 type Geo = { w: number; h: number; r: number };
 
 const G = {
-  resting: { w: 214, h: 32, r: 15 },
+  resting: { w: 196, h: 32, r: 15 },
   minimal: { w: 112, h: 5, r: 3 },
   music: { w: 236, h: 32, r: 15 },
   focus: { w: 272, h: 32, r: 15 },
@@ -132,10 +132,12 @@ export default function Notch() {
   // Arrastrar archivos al notch → abre el Estante (los eventos llegan desde Rust)
   useEffect(() => {
     const u1 = on<boolean>("shelf-drag", (v) => {
+      if (shelf.get().outgoing) return; // es nuestro propio arrastre hacia fuera
       shelf.set({ dragging: v });
       if (v) { setOpen(true); if (pages.includes("shelf")) setPage("shelf"); }
     });
     const u2 = on<string[]>("shelf-drop", (paths) => {
+      if (shelf.get().outgoing) return;
       shelf.set({ dragging: false });
       addPaths(paths);
       setOpen(true);
@@ -221,7 +223,7 @@ export default function Notch() {
   // ── Zona interactiva → Rust ──
   const lastGeo = useRef<Geo>(geo);
   useEffect(() => {
-    if (!place) return;
+    if (!place || sh.outgoing) return;
     const send = (g: Geo, visible: boolean) => {
       const sc = place.scale, d = place.dpr;
       const wCss = (g.w + EAR * 2) * sc;
@@ -234,27 +236,31 @@ export default function Notch() {
     // al encoger, espera a que termine la animación para no "perder" el hover
     const t = setTimeout(() => send(geo, true), 420);
     return () => clearTimeout(t);
-  }, [place, geo.w, geo.h, hold, mode]);
+  }, [place, geo.w, geo.h, hold, mode, sh.outgoing]);
 
+  const lyricsOpen = mode === "open" && page === "music" && s.lyricsActive && s.showLyrics && !!med.lyrics?.length && playing !== undefined;
   const style = {
+    "--tint": med.tint ?? "#3a2a1a",
     "--w": `${geo.w}px`, "--h": `${geo.h}px`, "--r": `${geo.r}px`, "--s": place?.scale ?? 1,
     "--dur": dodge && mode === "closed" ? "0.24s" : s.animSpeed === "fast" ? "0.32s" : "0.52s",
   } as React.CSSProperties;
 
   const now = new Date();
   const time = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const date = now.toLocaleDateString("es", { weekday: "short", day: "numeric" });
   const hud = huds[0];
 
   return (
-    <div className={`stage mode-${mode} closed-${closed}`} style={style} onWheel={onWheel}>
+    <div className={`stage mode-${mode} closed-${closed} ${lyricsOpen ? "lyrics-open" : ""}`} style={style} onWheel={onWheel}>
       <div className="notch" onClick={() => mode === "closed" && setOpen(true)}>
         <span className="ear l" /><span className="ear r" />
         <div className="clip">
         {/* ───── Cerrado ───── */}
         {mode === "closed" && (
           <div className="c-wrap" key={closed}>
-            {closed === "resting" && <><span className="c-time">{time}</span><span className="c-date">{date}</span></>}
+            {closed === "resting" && <>
+              <PowerIcon />
+              <span className="c-time mid">{time}</span>
+              <span className="c-spacer" /></>}
             {closed === "music" && <>
               {sys.power?.charging ? <span className="c-charge"><Ico n="bolt" s={11} fill /></span> : <Art src={med.art} size={20} />}
               <span className="c-time">{time}</span><Bars on={playing} /></>}
@@ -295,7 +301,7 @@ export default function Notch() {
           <div className="open" onFocusCapture={(e) => (e.target as HTMLElement).tagName.match(/INPUT|TEXTAREA/) && setInputHold(true)}
             onBlurCapture={() => setInputHold(false)}>
             <div className="page" key={page}>
-              {page === "music" && <MusicPage pos={pos} />}
+              {page === "music" && <MusicPage pos={pos} onPage={step} />}
               {page === "focus" && <FocusPage />}
               {page === "shelf" && <ShelfPage />}
               {page === "tasks" && <TasksPage />}
@@ -331,6 +337,14 @@ export function Art({ src, size }: { src: string | null; size: number }) {
 
 export function Bars({ on }: { on: boolean }) {
   return <span className={`bars ${on ? "on" : ""}`}><i /><i /><i /><i /></span>;
+}
+
+function PowerIcon() {
+  const { power } = sysStore.use();
+  if (!power?.has_battery) return <span className="c-spacer" />;
+  if (power.charging) return <span className="c-charge"><Ico n="bolt" s={11} fill /></span>;
+  const c = power.percent <= 20 ? "#ff453a" : power.percent <= 40 ? "#ffd60a" : "#f5f5f7";
+  return <span className="c-batt" title={`${power.percent}%`}><i style={{ width: `${power.percent}%`, background: c }} /></span>;
 }
 
 function Ring({ p, color }: { p: number; color: string }) {

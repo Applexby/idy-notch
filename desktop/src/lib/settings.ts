@@ -41,7 +41,7 @@ export const DEFAULTS: Settings = {
   shelfStartEmpty: false, hudCharging: true, hudHeadphones: true,
   alarmLoop: true, volume: 0.7,
   pages: ["music", "focus", "shelf", "tasks", "notes", "reminders"],
-  webUrl: "https://idy-notch.vercel.app",
+  webUrl: "https://web-mauve-five-n7g1wnmllz.vercel.app",
 };
 
 export const PAGE_LABEL: Record<PageId, string> = {

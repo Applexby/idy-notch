@@ -59,9 +59,16 @@ export default function Settings() {
     setCode(""); reloadGroups(); toast("Te uniste al grupo");
   }
   async function leave(id: string, name: string) {
-    if (!confirm(`¿Salir de "${name}"?`)) return;
-    await supabase.rpc("leave_group", { gid: id });
-    reloadGroups();
+    if (!confirm(`¿Salir de "${name}"? Dejarás de ver lo que se comparte ahí.`)) return;
+    const { error } = await supabase.rpc("leave_group", { gid: id });
+    if (error) return toast(error.message);
+    reloadGroups(); toast("Saliste del grupo");
+  }
+  async function removeGroup(id: string, name: string) {
+    if (!confirm(`¿Borrar el grupo "${name}"? Se eliminarán también sus recordatorios, notas y tareas compartidas, para todos.`)) return;
+    const { error } = await supabase.from("groups").delete().eq("id", id);
+    if (error) return toast(error.message);
+    reloadGroups(); toast("Grupo borrado");
   }
 
   return (
@@ -108,7 +115,9 @@ export default function Settings() {
               <span key={m.user_id} className="chip">{m.profiles?.display_name || m.profiles?.username}{m.role === "owner" ? " ★" : ""}</span>
             ))}
           </div>
-          {g.owner_id !== session.user.id && <button className="link danger" onClick={() => leave(g.id, g.name)}>Salir del grupo</button>}
+          {g.owner_id === session.user.id
+            ? <button className="link danger" onClick={() => removeGroup(g.id, g.name)}><Icon name="trash" size={15} /> Borrar grupo</button>
+            : <button className="link danger" onClick={() => leave(g.id, g.name)}><Icon name="logout" size={15} /> Salir del grupo</button>}
         </div>
       ))}
       <div className="card">

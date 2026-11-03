@@ -48,13 +48,19 @@ export async function openPath(p: string) {
   await openPath(p).catch(console.error);
 }
 
+let dragIcon: string | null = null;
+let dragMod: typeof import("@crabnebula/tauri-plugin-drag") | null = null;
+/** Precarga para que el arrastre arranque al instante (mientras el botón sigue pulsado) */
+export async function prepareDrag() {
+  if (!IS_TAURI || (dragMod && dragIcon)) return;
+  const [m, { resolveResource }] = await Promise.all([import("@crabnebula/tauri-plugin-drag"), import("@tauri-apps/api/path")]);
+  dragMod = m;
+  dragIcon = await resolveResource("resources/drag.png");
+}
 export async function startFileDrag(paths: string[]) {
   if (!IS_TAURI) return;
-  const [{ startDrag }, { resolveResource }] = await Promise.all([
-    import("@crabnebula/tauri-plugin-drag"), import("@tauri-apps/api/path"),
-  ]);
-  const icon = await resolveResource("resources/drag.png");
-  await startDrag({ item: paths, icon }).catch(console.error);
+  await prepareDrag();
+  await dragMod!.startDrag({ item: paths, icon: dragIcon! }).catch(console.error);
 }
 
 export async function fileSrc(path: string) {
@@ -77,3 +83,12 @@ export async function openUrl(url: string) {
 
 export const clipboardFiles = () => invoke<string[]>("clipboard_files").then((v) => v ?? []).catch(() => [] as string[]);
 export const openWeb = (url: string) => (IS_TAURI ? invoke("open_web", { url }) : Promise.resolve(window.open(url, "_blank"))).catch(console.error);
+
+export interface Volume { level: number; muted: boolean }
+let mockVol = 0.6;
+export const getVolume = () => IS_TAURI
+  ? invoke<Volume>("get_volume").then((v) => v ?? null).catch(() => null)
+  : Promise.resolve({ level: mockVol, muted: false } as Volume);
+export const setVolume = (level: number) => IS_TAURI
+  ? invoke("set_volume", { level }).catch(() => {})
+  : Promise.resolve(void (mockVol = level));

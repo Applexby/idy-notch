@@ -47,6 +47,16 @@ fn media_command(action: String, position_ms: Option<u64>) -> Result<(), String>
     media::control(&action, position_ms).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn get_volume() -> Result<media::Volume, String> {
+    media::get_volume()
+}
+
+#[tauri::command]
+async fn set_volume(level: f32) -> Result<(), String> {
+    media::set_volume(level)
+}
+
 /// Debe ser `async`: en Windows, crear una ventana desde un comando síncrono
 /// bloquea el hilo principal y la ventana queda en blanco / "No responde".
 #[tauri::command]
@@ -182,6 +192,8 @@ pub fn run() {
             save_text_card,
             get_foreground,
             clipboard_files,
+            get_volume,
+            set_volume,
             open_web,
             quit_app
         ])

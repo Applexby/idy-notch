@@ -6,9 +6,34 @@ import { getSettings } from "../lib/settings";
 
 const EMPTY: MediaState = { has_session: false, title: "", artist: "", album: "", app: "", playing: false, position_ms: 0, duration_ms: 0 };
 
-export const mediaStore = createStore<{ m: MediaState; at: number; art: string | null; lyrics: LyricLine[] | null }>({
-  m: EMPTY, at: Date.now(), art: null, lyrics: null,
+export const mediaStore = createStore<{ m: MediaState; at: number; art: string | null; lyrics: LyricLine[] | null; tint: string | null }>({
+  m: EMPTY, at: Date.now(), art: null, lyrics: null, tint: null,
 });
+
+/** Color predominante (y con algo de saturación) de la carátula */
+function dominantColor(src: string): Promise<string | null> {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement("canvas"); c.width = c.height = 24;
+        const x = c.getContext("2d")!; x.drawImage(img, 0, 0, 24, 24);
+        const d = x.getImageData(0, 0, 24, 24).data;
+        let r = 0, g = 0, b = 0, w = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          const R = d[i], G = d[i + 1], B = d[i + 2];
+          const mx = Math.max(R, G, B), mn = Math.min(R, G, B);
+          const sat = mx ? (mx - mn) / mx : 0, lum = mx / 255;
+          const wt = 0.15 + sat * 1.5 * (lum > 0.12 && lum < 0.95 ? 1 : 0.2);
+          r += R * wt; g += G * wt; b += B * wt; w += wt;
+        }
+        res(w ? `rgb(${Math.round(r / w)}, ${Math.round(g / w)}, ${Math.round(b / w)})` : null);
+      } catch { res(null); }
+    };
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
 
 let lastKey = "";
 on<MediaState>("media", (m) => {
@@ -22,7 +47,11 @@ on<MediaState>("media", (m) => {
     });
   }
 });
-on<string | null>("media-art", (art) => mediaStore.set({ art }));
+on<string | null>("media-art", (art) => {
+  mediaStore.set({ art });
+  if (art) dominantColor(art).then((tint) => mediaStore.get().art === art && mediaStore.set({ tint }));
+  else mediaStore.set({ tint: null });
+});
 
 /** Posición interpolada entre actualizaciones (en ms) */
 export function usePosition(fps = 4) {

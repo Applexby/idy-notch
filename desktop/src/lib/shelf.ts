@@ -5,9 +5,9 @@ import { createStore } from "./store";
 export interface ShelfItem { path: string; name: string; ext: string; addedAt: number; text?: string }
 
 const KEY = "idy-shelf";
-export const shelf = createStore<{ items: ShelfItem[]; selected: string[]; dragging: boolean }>({
+export const shelf = createStore<{ items: ShelfItem[]; selected: string[]; dragging: boolean; outgoing: boolean }>({
   items: getSettings().shelfStartEmpty ? [] : local.get<ShelfItem[]>(KEY, []),
-  selected: [], dragging: false,
+  selected: [], dragging: false, outgoing: false,
 });
 shelf.subscribe(() => local.set(KEY, shelf.get().items));
 
