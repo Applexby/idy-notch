@@ -14,6 +14,7 @@ export interface Settings {
   pageIcons: boolean;
   animSpeed: "normal" | "fast";
   showLyrics: boolean;
+  lyricsActive: boolean; // el botón de letra en la página de Música
   lyricsInClosed: boolean;
   todoRemindStart: boolean;
   todoRemindEnd: boolean;
@@ -33,7 +34,7 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   size: "auto", minimal: false, mascot: true, sounds: true, hideFullscreen: true, dodgeMaximized: true, monitor: null,
   openOn: "hover", pageIcons: true, animSpeed: "normal",
-  showLyrics: true, lyricsInClosed: true,
+  showLyrics: true, lyricsActive: false, lyricsInClosed: true,
   todoRemindStart: true, todoRemindEnd: true, snoozeMin: 10,
   focusMin: 25, shortMin: 5, longMin: 15, autoBreak: false,
   shelfStartEmpty: false, hudCharging: true, hudHeadphones: true,

@@ -184,13 +184,14 @@ export default function Notch() {
     if (s.mascot && !playing && hello && !dodge) return "hello";
     if (s.mascot && !playing && sys.idle >= 180) return "mascot-sleep";
     if (s.mascot && !playing && away) return "mascot";
+    // Con la letra activada, la línea se queda visible encima de cualquier programa
+    if (playing && s.showLyrics && s.lyricsActive && s.lyricsInClosed && lyricText) return "lyrics";
     if (dodge) return "minimal";
     if (focusOn) return "focus";
-    if (playing && s.showLyrics && s.lyricsInClosed && lyricText) return "lyrics";
     if (playing) return "music";
     if (s.minimal) return "minimal";
     return "resting";
-  }, [focusOn, playing, s.showLyrics, s.lyricsInClosed, lyricText, s.mascot, hello, sys.idle, away, s.minimal, dodge]);
+  }, [focusOn, playing, s.showLyrics, s.lyricsActive, s.lyricsInClosed, lyricText, s.mascot, hello, sys.idle, away, s.minimal, dodge]);
 
   const mode = hidden ? "hidden" : current ? "alarm" : open ? "open" : huds.length ? "hud" : "closed";
   const geo: Geo = mode === "alarm" ? G.alarm : mode === "open" ? G.open : mode === "hud" ? G.hud

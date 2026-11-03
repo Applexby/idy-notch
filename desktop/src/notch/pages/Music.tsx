@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { media } from "../../lib/native";
 import { currentLine } from "../../lib/lyrics";
-import { useSettings } from "../../lib/settings";
+import { setSettings, useSettings } from "../../lib/settings";
 import { mediaStore } from "../useNative";
 import { Art, fmtMs } from "../Notch";
 import { Ico } from "../icons";
@@ -20,9 +20,9 @@ function appName(aumid: string) {
 export default function MusicPage({ pos }: { pos: number }) {
   const { m, art, lyrics } = mediaStore.use();
   const s = useSettings();
-  const [split, setSplit] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const idx = lyrics ? currentLine(lyrics, pos) : -1;
+  const split = s.lyricsActive;
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(".on");
@@ -59,8 +59,8 @@ export default function MusicPage({ pos }: { pos: number }) {
             <small>{[m.artist, appName(m.app)].filter(Boolean).join(" · ")}</small>
           </div>
           {s.showLyrics && (
-            <button className={`nb icon ${split ? "lit" : ""}`} disabled={!hasLyrics} onClick={() => setSplit(!split)}
-              title={hasLyrics ? "Letra" : "Sin letra sincronizada"}><Ico n="quote" s={16} /></button>
+            <button className={`nb icon ${split ? "lit" : ""}`} disabled={!hasLyrics && !split} onClick={() => setSettings({ lyricsActive: !split })}
+              title={split ? "Ocultar letra" : hasLyrics ? "Mostrar letra" : "Sin letra sincronizada"}><Ico n="quote" s={16} /></button>
           )}
         </div>
         <div className="progress" onClick={seek}>

@@ -15,6 +15,12 @@ pub struct Power {
 }
 
 #[derive(Serialize, Clone, Debug)]
+pub struct Fg {
+    pub state: u8,
+    pub class: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
 pub struct Bt {
     pub name: String,
     pub connected: bool,
@@ -49,22 +55,26 @@ pub fn spawn_hover_watch(app: AppHandle, shared: Arc<Shared>) {
     });
 }
 
-pub fn spawn_system_watch(app: AppHandle) {
+pub fn spawn_system_watch(app: AppHandle, shared: Arc<Shared>) {
     std::thread::spawn(move || {
         imp::com_init();
         let mut tick: u64 = 0;
         let mut last_power: Option<Power> = None;
         let mut last_fg: Option<u8> = None;
+        let mut last_class = String::new();
         let mut bt_known: Option<std::collections::HashMap<String, String>> = None;
         let mut class_cache = std::collections::HashMap::<String, bool>::new();
         loop {
             // Ventana en primer plano (cada 250 ms): 0 normal, 1 maximizada / tapa el notch, 2 pantalla completa
             let notch = app.get_webview_window("notch").and_then(|w| imp::raw_hwnd(&w));
-            if let Some(fg) = imp::foreground(notch) {
-                if last_fg != Some(fg) {
+            if let Some((fg, class)) = imp::foreground(notch) {
+                if last_fg != Some(fg) || last_class != class {
                     let _ = app.emit("foreground", fg);
                     let _ = app.emit("fullscreen", fg == 2);
+                    let _ = app.emit("foreground-info", Fg { state: fg, class: class.clone() });
+                    *shared.fg.lock().unwrap() = (fg, class.clone());
                     last_fg = Some(fg);
+                    last_class = class;
                 }
             }
             // Inactividad (cada 1 s)
@@ -118,8 +128,10 @@ mod imp {
     use windows::Win32::System::SystemInformation::GetTickCount;
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowLongW, GetWindowRect, IsZoomed, GWL_STYLE, WS_CAPTION,
+        GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowLongW, GetWindowRect, IsIconic, IsWindowVisible, IsZoomed,
+        GWL_STYLE, WS_CAPTION,
     };
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 
     pub fn com_init() {
         unsafe {
@@ -140,35 +152,52 @@ mod imp {
 
     /// 0 = normal, 1 = maximizada o tapa la zona del notch, 2 = pantalla completa real.
     /// None = el foco está en el propio notch (no cambiar nada).
-    pub fn foreground(notch: Option<isize>) -> Option<u8> {
+    /// (estado, clase de la ventana). Estado: 0 normal, 1 maximizada o tapa la zona
+    /// del notch, 2 pantalla completa real. None = el foco está en el propio notch.
+    pub fn foreground(notch: Option<isize>) -> Option<(u8, String)> {
         unsafe {
             let fg = GetForegroundWindow();
             if fg.0.is_null() {
-                return Some(0);
+                return Some((0, String::new()));
             }
             if Some(fg.0 as isize) == notch {
                 return None;
             }
-            let mut buf = [0u16; 64];
+            let mut buf = [0u16; 128];
             let n = GetClassNameW(fg, &mut buf);
             let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
-            if matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow") {
-                return Some(0);
+            let normal = |c: &str| Some((0u8, c.to_string()));
+            // Escritorio, barra de tareas, menú Inicio, búsqueda, vista de tareas…
+            if matches!(class.as_str(),
+                "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow"
+                | "XamlExplorerHostIslandWindow" | "MultitaskingViewFrame" | "ForegroundStaging" | "TopLevelWindowForOverflowXamlIsland"
+                | "NotifyIconOverflowWindow" | "#32768" | "tooltips_class32")
+            {
+                return normal(&class);
+            }
+            // Minimizada, invisible u oculta por Windows (cloaked) → no cuenta
+            if IsIconic(fg).as_bool() || !IsWindowVisible(fg).as_bool() {
+                return normal(&class);
+            }
+            let mut cloaked: u32 = 0;
+            let _ = DwmGetWindowAttribute(fg, DWMWA_CLOAKED, &mut cloaked as *mut u32 as *mut c_void, std::mem::size_of::<u32>() as u32);
+            if cloaked != 0 {
+                return normal(&class);
             }
             let mut wr = RECT::default();
             if GetWindowRect(fg, &mut wr).is_err() {
-                return Some(0);
+                return normal(&class);
             }
             let mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
             if let Some(nh) = notch {
                 let notch_mon = MonitorFromWindow(HWND(nh as *mut c_void), MONITOR_DEFAULTTONEAREST);
                 if notch_mon != mon {
-                    return Some(0);
+                    return normal(&class);
                 }
             }
             let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
             if !GetMonitorInfoW(mon, &mut mi).as_bool() {
-                return Some(0);
+                return normal(&class);
             }
             let m = mi.rcMonitor;
             let zoomed = IsZoomed(fg).as_bool();
@@ -176,17 +205,17 @@ mod imp {
             let has_caption = style & WS_CAPTION.0 == WS_CAPTION.0;
             let covers = wr.left <= m.left && wr.top <= m.top && wr.right >= m.right && wr.bottom >= m.bottom;
             if covers && !zoomed && !has_caption {
-                return Some(2);
+                return Some((2, class));
             }
             if zoomed || covers {
-                return Some(1);
+                return Some((1, class));
             }
             // Ventana pegada arriba que pasa por el centro (donde está el notch)
             let cx = (m.left + m.right) / 2;
-            if wr.top <= m.top + 6 && wr.left < cx + 150 && wr.right > cx - 150 {
-                return Some(1);
+            if wr.top <= m.top + 6 && wr.bottom > m.top + 40 && wr.left < cx + 150 && wr.right > cx - 150 {
+                return Some((1, class));
             }
-            Some(0)
+            Some((0, class))
         }
     }
 
@@ -251,7 +280,7 @@ mod imp {
     pub fn com_init() {}
     pub fn cursor() -> Option<(f64, f64)> { None }
     pub fn raw_hwnd(_w: &tauri::WebviewWindow) -> Option<isize> { None }
-    pub fn foreground(_n: Option<isize>) -> Option<u8> { Some(0) }
+    pub fn foreground(_n: Option<isize>) -> Option<(u8, String)> { Some((0, String::new())) }
     pub fn power() -> Option<Power> { None }
     pub fn idle_secs() -> u64 { 0 }
     pub fn bt_audio(_c: &mut HashMap<String, bool>) -> Option<HashMap<String, String>> { None }

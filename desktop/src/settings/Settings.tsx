@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usernameToEmail } from "@shared/config";
-import { autostart, IS_TAURI, on, openUrl, quitApp } from "../lib/native";
+import { autostart, invoke, IS_TAURI, on, openUrl, quitApp } from "../lib/native";
 import { PAGE_LABEL, setSettings, useSettings, type PageId, type Settings } from "../lib/settings";
 import { supabase } from "../lib/supa";
 import { alarm, chime } from "../lib/sound";
@@ -331,15 +331,34 @@ function Account() {
   </>;
 }
 
+function Diag() {
+  const s = useSettings();
+  const [fg, setFg] = useState<{ state: number; class: string } | null>(null);
+  useEffect(() => {
+    const read = () => invoke<{ state: number; class: string }>("get_foreground").then((v) => v && setFg(v)).catch(() => {});
+    read();
+    const t = setInterval(read, 1000);
+    return () => clearInterval(t);
+  }, []);
+  const label = ["Normal (hora y fecha)", "Barrita (ventana maximizada)", "Oculto (pantalla completa)"][fg?.state ?? 0];
+  return (
+    <Group title="Diagnóstico">
+      <Row label="Ventana activa" hint={fg?.class || "—"}><span className="muted">{label}</span></Row>
+      {s.minimal && <Row label="Notch mínimo está activado" hint="Por eso ves una barrita en lugar de la hora"><button className="btn small" onClick={() => setSettings({ minimal: false })}>Desactivar</button></Row>}
+    </Group>
+  );
+}
+
 function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.1.0 · Un notch vivo para Windows</small>
+    <small>Versión 1.2.0 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
       <Row label="Hecho por"><span className="muted">Applexby</span></Row>
     </Group>
+    <Diag />
     <button className="btn danger" onClick={() => quitApp()}>Salir de IDY</button>
   </div>;
 }

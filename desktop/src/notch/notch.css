@@ -37,7 +37,10 @@ input, textarea { font: inherit; color: var(--t1); outline: none; }
 .ear.r { right: -12px; background: radial-gradient(circle at 100% 100%, transparent 11.5px, var(--ink) 12px); }
 .mode-hidden .notch { transform: translateX(-50%) translateY(-130%); }
 .mode-open .notch, .mode-alarm .notch { box-shadow: 0 22px 50px -12px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(255,255,255,.05); }
-.closed-minimal.mode-closed .ear { transform: scale(.5); transform-origin: top; }
+/* Barrita: una píldora limpia, sin "orejas" (a esta altura parecían triángulos) */
+.closed-minimal.mode-closed .ear { opacity: 0; transform: scale(0); }
+.closed-minimal.mode-closed .notch { border-radius: 0 0 6px 6px; }
+.ear { transition: opacity .2s, transform .25s var(--ease); transform-origin: top center; }
 
 @keyframes cin { from { opacity: 0; filter: blur(4px); transform: scale(.94); } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }

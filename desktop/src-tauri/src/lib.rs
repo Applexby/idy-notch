@@ -27,6 +27,14 @@ pub struct HitRect {
 #[derive(Default)]
 pub struct Shared {
     pub hit: Mutex<HitRect>,
+    /// Último estado de la ventana activa (para el diagnóstico de Ajustes)
+    pub fg: Mutex<(u8, String)>,
+}
+
+#[tauri::command]
+fn get_foreground(state: tauri::State<Arc<Shared>>) -> system::Fg {
+    let (s, c) = state.fg.lock().unwrap().clone();
+    system::Fg { state: s, class: c }
 }
 
 #[tauri::command]
@@ -126,6 +134,7 @@ pub fn run() {
             media_command,
             open_settings,
             save_text_card,
+            get_foreground,
             quit_app
         ])
         .setup(move |app| {
@@ -157,7 +166,7 @@ pub fn run() {
 
             // ── Hilos nativos ──
             system::spawn_hover_watch(handle.clone(), shared.clone());
-            system::spawn_system_watch(handle.clone());
+            system::spawn_system_watch(handle.clone(), shared.clone());
             media::spawn_watch(handle.clone());
 
             let _ = handle.emit("native-ready", ());
