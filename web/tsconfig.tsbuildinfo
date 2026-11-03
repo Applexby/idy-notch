@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/hooks.ts","./src/main.tsx","./src/push.ts","./src/supabase.ts","./src/ui.tsx","./src/screens/Auth.tsx","./src/screens/Notes.tsx","./src/screens/Reminders.tsx","./src/screens/Settings.tsx","./src/screens/Tasks.tsx","../shared/config.ts","../shared/time.ts","../shared/types.ts"],"version":"5.6.3"}

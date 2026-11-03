@@ -1,0 +1,36 @@
+const P: Record<string, string> = {
+  play: "M8 5.5v13l10.5-6.5L8 5.5Z",
+  pause: "M6.5 5h4v14h-4zM13.5 5h4v14h-4z",
+  next: "M5.5 6v12l9-6-9-6ZM16 6h2.5v12H16z",
+  prev: "M18.5 6v12l-9-6 9-6ZM5.5 6H8v12H5.5z",
+  quote: "M5 7h14M5 12h10M5 17h7",
+  gear: "M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm7.4 2.8c0-.5 0-.9-.1-1.3l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.2-1.3L14.3 3h-4l-.4 2.4a7.6 7.6 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.6a8 8 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1c.7.6 1.4 1 2.2 1.3l.4 2.4h4l.4-2.4c.8-.3 1.5-.7 2.2-1.3l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.3Z",
+  music: "M9 18V6l11-2v12M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+  timer: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11v4l2.5 1.5M9.5 2.5h5",
+  shelf: "M3 13l2.5-7h13L21 13M3 13v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5M3 13h5l1 2h6l1-2h5",
+  check: "M5 12.5l4.2 4.2L19 7",
+  todo: "M4 6.5l1.5 1.5L8 5.5M4 12.5l1.5 1.5L8 11.5M4 18.5l1.5 1.5L8 17.5M11 7h9M11 13h9M11 19h9",
+  note: "M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm9 0v4h4M8.5 12h7M8.5 16h5",
+  alarm: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11v3.5l2.5 1.5M3 5l3-2.5M21 5l-3-2.5",
+  headphones: "M4 15v-3a8 8 0 0 1 16 0v3M4 15a2 2 0 0 1 2-2h1v7H6a2 2 0 0 1-2-2v-3Zm16 0a2 2 0 0 0-2-2h-1v7h1a2 2 0 0 0 2-2v-3Z",
+  bolt: "M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z",
+  battery: "M3 8h15a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm19 3v2",
+  plus: "M12 5v14M5 12h14",
+  x: "M6 6l12 12M18 6L6 18",
+  reset: "M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4",
+  trash: "M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c2 .8 3 2.8 3 5.5",
+  file: "M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm8 0v5h5",
+  folder: "M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z",
+  login: "M10 4H5v16h5M14 8l4 4-4 4M18 12H8",
+  snooze: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM9.5 10.5h5l-5 5h5",
+};
+
+export function Ico({ n, s = 18, w = 1.9, fill = false }: { n: string; s?: number; w?: number; fill?: boolean }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"} stroke={fill ? "none" : "currentColor"} strokeWidth={w}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={P[n] ?? ""} /></svg>
+  );
+}
+
+export const PAGE_ICON = { music: "music", focus: "timer", shelf: "shelf", tasks: "todo", notes: "note", reminders: "alarm" } as const;

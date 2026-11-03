@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#2b1d0b"/><stop offset=".55" stop-color="#0f0d0c"/><stop offset="1" stop-color="#050505"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9f0a"/><stop offset=".5" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff375f"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="0" fill="url(#g)"/>
+  <!-- halo -->
+  <rect x="232" y="380" width="560" height="250" rx="125" fill="url(#rim)" opacity=".55" filter="url(#blur)"/>
+  <!-- notch pill -->
+  <rect x="222" y="372" width="580" height="256" rx="128" fill="#000"/>
+  <rect x="222" y="372" width="580" height="256" rx="128" fill="none" stroke="url(#rim)" stroke-width="10" opacity=".9"/>
+  <!-- ojitos -->
+  <rect x="398" y="428" width="64" height="144" rx="32" fill="#fff"/>
+  <rect x="562" y="428" width="64" height="144" rx="32" fill="#fff"/>
+</svg>
