@@ -60,7 +60,7 @@ Cada push a `main` que toque `desktop/` compila el instalador en GitHub Actions
 (pestaña **Actions → Notch para Windows → Artifacts**). Para publicar una versión:
 
 ```bash
-git tag v1.0.0 && git push --tags   # crea un Release con el .exe y el .msi
+git tag v1.0.0 && git push --tags   # crea un Release con el instalador .exe
 ```
 
 Desarrollo local (Windows, con Rust y Node instalados):

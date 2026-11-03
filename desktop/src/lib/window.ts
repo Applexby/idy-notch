@@ -7,9 +7,11 @@ export const BASE_H = 300;
 
 export interface Placement { x: number; y: number; dpr: number; scale: number; W: number; H: number }
 
+/** El diseño base se dibuja al 82 % para que el notch sea compacto */
+export const UI_FACTOR = 0.82;
 export function scaleFor(s: Settings, logicalWidth: number) {
-  if (s.size === "auto") return logicalWidth >= 2200 ? 1.15 : 1;
-  return s.size / 100;
+  const user = s.size === "auto" ? (logicalWidth >= 2200 ? 1.15 : 1) : s.size / 100;
+  return user * UI_FACTOR;
 }
 
 export async function placeWindow(s: Settings): Promise<Placement> {

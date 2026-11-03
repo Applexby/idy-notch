@@ -37,9 +37,10 @@ export function usePosition(fps = 4) {
   return m.duration_ms ? Math.min(pos, m.duration_ms) : pos;
 }
 
-export const sysStore = createStore<{ power: Power | null; idle: number; fullscreen: boolean; hover: boolean }>({
-  power: null, idle: 0, fullscreen: false, hover: false,
+export const sysStore = createStore<{ power: Power | null; idle: number; fullscreen: boolean; foreground: number; hover: boolean }>({
+  power: null, idle: 0, fullscreen: false, foreground: 0, hover: false,
 });
+on<number>("foreground", (foreground) => sysStore.set({ foreground }));
 on<number>("idle", (idle) => sysStore.set({ idle }));
 on<boolean>("fullscreen", (fullscreen) => sysStore.set({ fullscreen }));
 on<boolean>("hover", (hover) => sysStore.set({ hover }));

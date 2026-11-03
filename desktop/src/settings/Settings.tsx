@@ -128,8 +128,9 @@ function General() {
         <button className="btn small" onClick={() => chime(true)}>Probar</button>
       </Row>
     </Group>
-    <Group title="Pantalla completa">
+    <Group title="Otras ventanas">
       <Sw k="hideFullscreen" label="Ocultar en pantalla completa" hint="Juegos, videos y presentaciones que llenan la pantalla" />
+      <Sw k="dodgeMaximized" label="Encoger sobre ventanas maximizadas" hint="Se vuelve una barrita para no tapar la barra de direcciones del navegador" />
     </Group>
   </>;
 }
@@ -334,10 +335,10 @@ function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.0.0 · Un notch vivo para Windows</small>
+    <small>Versión 1.1.0 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
-      <Row label="Hecho por"><span className="muted">Idealo</span></Row>
+      <Row label="Hecho por"><span className="muted">Applexby</span></Row>
     </Group>
     <button className="btn danger" onClick={() => quitApp()}>Salir de IDY</button>
   </div>;

@@ -27,7 +27,7 @@ input, textarea { font: inherit; color: var(--t1); outline: none; }
   background: var(--ink);
   border-radius: 0 0 var(--r) var(--r);
   transition: width var(--dur) var(--spring), height var(--dur) var(--spring),
-    border-radius var(--dur) var(--spring), transform .45s var(--ease), box-shadow .4s ease;
+    border-radius var(--dur) var(--spring), transform .22s var(--ease), box-shadow .4s ease;
   will-change: width, height;
 }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
@@ -236,9 +236,62 @@ input, textarea { font: inherit; color: var(--t1); outline: none; }
 .note-card small { color: var(--t3); font-size: 10.5px; margin-top: auto; }
 
 /* Recordatorios */
-.rem { height: 100%; display: flex; flex-direction: column; gap: 10px; }
+.rem { height: 100%; display: flex; flex-direction: column; gap: 8px; }
 .rem-add { display: flex; flex-direction: column; gap: 8px; }
 .rem-add > input { background: var(--chip); border: 1px solid transparent; border-radius: 12px; height: 34px; padding: 0 12px; font-size: 13.5px; }
 .rem-add > input:focus { border-color: rgba(255,159,10,.5); }
 .rdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .r-when { color: #ff9f0a; font-weight: 600; }
+
+/* ───── v1.1 ───── */
+.nb.danger { background: rgba(255,69,58,.18); color: #ff453a; }
+.nb.lit-y { color: #ffd60a; }
+.nb.lit-o { color: #ff9f0a; background: rgba(255,159,10,.14); }
+.flash { margin-left: 10px; font-size: 11.5px; color: #ffd60a; font-weight: 600; animation: rise .25s var(--ease) both; }
+.tlist li .del, .rlist li .nb.tiny { opacity: 0; transition: opacity .15s; }
+.tlist li:hover .del, .rlist li:hover .nb.tiny { opacity: 1; }
+
+/* Nota abierta */
+button.note-card { text-align: left; cursor: pointer; transition: transform .2s var(--spring), background .2s; }
+button.note-card:hover { background: #18181b; transform: translateY(-1px); }
+.note-editor { height: 100%; display: flex; flex-direction: column; gap: 8px; }
+.ne-head { display: flex; align-items: center; gap: 6px; }
+.ne-title { flex: 1; min-width: 0; background: transparent; border: 0; font-size: 15px; font-weight: 700; padding: 4px 2px; }
+.ne-body { flex: 1; resize: none; background: #111113; border: 1px solid #222225; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; line-height: 1.45; }
+.ne-body:focus { border-color: rgba(255,214,10,.45); }
+.ne-check { list-style: none; margin: 0; padding: 0 2px; flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; align-content: start; }
+.ne-check li { display: flex; align-items: center; gap: 9px; height: 28px; font-size: 13px; }
+.ne-check li span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ne-check li.done span { color: var(--t3); text-decoration: line-through; }
+.ne-check .box { width: 16px; height: 16px; border-radius: 5px; border: 1.6px solid var(--t2); display: grid; place-items: center; color: #000; flex: none; }
+.ne-check li.done .box { background: #ffd60a; border-color: #ffd60a; }
+.ne-check .nb.tiny { opacity: 0; }
+.ne-check li:hover .nb.tiny { opacity: 1; }
+
+/* Recordatorio con hora elegida */
+.rem-title { display: flex; gap: 8px; align-items: center; }
+.rem-title input { flex: 1; min-width: 0; background: var(--chip); border: 1px solid transparent; border-radius: 12px; height: 34px; padding: 0 12px; font-size: 13.5px; }
+.rem-title input:focus { border-color: rgba(255,159,10,.5); }
+.chip { display: inline-flex; align-items: center; gap: 5px; }
+.chips.tight { gap: 4px; flex-wrap: nowrap; }
+.chips.tight .chip { height: 24px; padding: 0 9px; font-size: 11.5px; }
+.picker { flex: 1; display: grid; grid-template-columns: 108px auto 1fr; align-items: center; gap: 16px; background: #0e0e10; border: 1px solid #1f1f22;
+  border-radius: 16px; padding: 4px 14px; min-height: 0; animation: rise .25s var(--ease) both; }
+.pk-day { display: flex; align-items: center; gap: 4px; }
+.pk-day > div { flex: 1; text-align: center; line-height: 1.15; }
+.pk-day b { display: block; font-size: 13px; text-transform: capitalize; }
+.pk-day small { font-size: 11px; color: var(--t2); }
+.pk-time { display: flex; align-items: center; gap: 2px; }
+.pk-colon { font-size: 26px; font-weight: 700; color: var(--t3); margin-top: -3px; }
+.spin { display: flex; flex-direction: column; align-items: center; width: 52px; }
+.spin button { width: 40px; height: 16px; display: grid; place-items: center; color: var(--t3); border-radius: 6px; }
+.spin button:hover { color: var(--t1); background: var(--chip); }
+.spin b { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.02em; animation: tick .2s var(--spring); }
+@keyframes tick { from { transform: translateY(-3px); opacity: .5; } }
+.pk-side { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 0; }
+.nb.go { height: 32px; background: #ff9f0a; color: #000; }
+.nb.go:disabled { background: var(--chip); color: var(--t3); opacity: 1; }
+
+/* Tarjeta de texto en el Estante */
+.thumb.txt { background: #f5f5f7; color: #1c1c1e; padding: 5px; align-items: flex-start; justify-content: flex-start; }
+.thumb.txt span { font-size: 6.5px; line-height: 1.25; overflow: hidden; text-align: left; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }

@@ -2,7 +2,7 @@
 import { getSettings, local } from "./settings";
 import { createStore } from "./store";
 
-export interface ShelfItem { path: string; name: string; ext: string; addedAt: number }
+export interface ShelfItem { path: string; name: string; ext: string; addedAt: number; text?: string }
 
 const KEY = "idy-shelf";
 export const shelf = createStore<{ items: ShelfItem[]; selected: string[]; dragging: boolean }>({
@@ -25,3 +25,14 @@ export const removePaths = (paths: string[]) =>
   shelf.set((s) => ({ items: s.items.filter((i) => !paths.includes(i.path)), selected: s.selected.filter((p) => !paths.includes(p)) }));
 export const clearShelf = () => shelf.set({ items: [], selected: [] });
 export const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif"]);
+
+/** Guarda un texto como tarjeta (archivo .txt temporal que se puede arrastrar fuera) */
+export async function addText(text: string) {
+  const t = text.trim();
+  if (!t) return;
+  const { invoke, IS_TAURI } = await import("./native");
+  const path = IS_TAURI ? await invoke<string>("save_text_card", { text: t }) : `mock://texto-${Date.now()}.txt`;
+  if (!path) return;
+  const name = t.split("\n")[0].slice(0, 40);
+  shelf.set((s) => ({ items: [{ path, name, ext: "txt", addedAt: Date.now(), text: t }, ...s.items].slice(0, 200) }));
+}

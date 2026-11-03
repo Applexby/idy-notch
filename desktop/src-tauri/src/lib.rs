@@ -39,9 +39,35 @@ fn media_command(action: String, position_ms: Option<u64>) -> Result<(), String>
     media::control(&action, position_ms).map_err(|e| e.to_string())
 }
 
+/// Debe ser `async`: en Windows, crear una ventana desde un comando síncrono
+/// bloquea el hilo principal y la ventana queda en blanco / "No responde".
 #[tauri::command]
-fn open_settings(app: AppHandle, page: Option<String>) {
+async fn open_settings(app: AppHandle, page: Option<String>) {
     show_settings(&app, page);
+}
+
+/// Guarda un texto del Estante como .txt (en la caché de la app) y devuelve su ruta,
+/// para poder arrastrarlo fuera como archivo.
+#[tauri::command]
+async fn save_text_card(app: AppHandle, text: String) -> Result<String, String> {
+    let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("estante");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let first: String = text
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("Texto")
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
+        .take(32)
+        .collect();
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let name = format!("{} · {}.txt", first.trim().trim_end_matches(' '), stamp % 100_000);
+    let path = dir.join(name);
+    std::fs::write(&path, text.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -69,6 +95,7 @@ fn show_settings(app: &AppHandle, page: Option<String>) {
         .min_inner_size(680.0, 480.0)
         .decorations(false)
         .shadow(true)
+        .background_color(tauri::window::Color(28, 28, 30, 255))
         .resizable(true)
         .center()
         .build();
@@ -98,6 +125,7 @@ pub fn run() {
             set_hit_rect,
             media_command,
             open_settings,
+            save_text_card,
             quit_app
         ])
         .setup(move |app| {

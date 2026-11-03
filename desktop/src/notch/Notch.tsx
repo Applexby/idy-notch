@@ -21,7 +21,7 @@ type Geo = { w: number; h: number; r: number };
 
 const G = {
   resting: { w: 214, h: 32, r: 15 },
-  minimal: { w: 190, h: 7, r: 5 },
+  minimal: { w: 112, h: 5, r: 3 },
   music: { w: 300, h: 32, r: 15 },
   focus: { w: 272, h: 32, r: 15 },
   mascot: { w: 214, h: 32, r: 15 },
@@ -150,7 +150,7 @@ export default function Notch() {
   const onWheel = (e: React.WheelEvent) => {
     if (!open || Date.now() - wheelLock.current < 380) return;
     const target = e.target as HTMLElement;
-    if (target.closest(".scroll")) return; // listas con scroll propio
+    if (target.closest(".scroll, .nowheel")) return; // listas con scroll propio
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     if (Math.abs(d) < 8) return;
     wheelLock.current = Date.now();
@@ -174,17 +174,23 @@ export default function Notch() {
   const focusOn = f.running;
   const hidden = userHidden || (s.hideFullscreen && sys.fullscreen && !current);
 
+  // Sobre una ventana maximizada (p. ej. el navegador) el notch se reduce a una barrita
+  // para no tapar la barra de direcciones; al pasar el mouse vuelve a crecer.
+  const dodge = s.dodgeMaximized && sys.foreground === 1;
+  const away = sys.idle >= 25; // sin mouse ni teclado
   type Closed = "lyrics" | "music" | "focus" | "mascot-sleep" | "mascot" | "hello" | "minimal" | "resting";
   const closed: Closed = useMemo(() => {
+    // La mascota aparece con inactividad, salvo que haya música o video sonando
+    if (s.mascot && !playing && hello && !dodge) return "hello";
+    if (s.mascot && !playing && sys.idle >= 180) return "mascot-sleep";
+    if (s.mascot && !playing && away) return "mascot";
+    if (dodge) return "minimal";
     if (focusOn) return "focus";
     if (playing && s.showLyrics && s.lyricsInClosed && lyricText) return "lyrics";
     if (playing) return "music";
-    if (s.mascot && hello) return "hello";
-    if (s.mascot && sys.idle >= 180) return "mascot-sleep";
-    if (s.mascot && sys.idle >= 25) return "mascot";
     if (s.minimal) return "minimal";
     return "resting";
-  }, [focusOn, playing, s.showLyrics, s.lyricsInClosed, lyricText, s.mascot, hello, sys.idle, s.minimal]);
+  }, [focusOn, playing, s.showLyrics, s.lyricsInClosed, lyricText, s.mascot, hello, sys.idle, away, s.minimal, dodge]);
 
   const mode = hidden ? "hidden" : current ? "alarm" : open ? "open" : huds.length ? "hud" : "closed";
   const geo: Geo = mode === "alarm" ? G.alarm : mode === "open" ? G.open : mode === "hud" ? G.hud
@@ -212,7 +218,7 @@ export default function Notch() {
 
   const style = {
     "--w": `${geo.w}px`, "--h": `${geo.h}px`, "--r": `${geo.r}px`, "--s": place?.scale ?? 1,
-    "--dur": s.animSpeed === "fast" ? "0.32s" : "0.52s",
+    "--dur": dodge && mode === "closed" ? "0.24s" : s.animSpeed === "fast" ? "0.32s" : "0.52s",
   } as React.CSSProperties;
 
   const now = new Date();

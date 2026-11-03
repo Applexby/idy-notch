@@ -2,7 +2,7 @@
 // local de alarmas para que suenen al segundo exacto en el notch.
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
-import type { Note, Reminder, Task } from "@shared/types";
+import type { Note, Reminder, Repeat, Task } from "@shared/types";
 import { supabase } from "./supa";
 import { getSettings, local } from "./settings";
 
@@ -83,10 +83,28 @@ export async function addNote(body: string) {
   await supabase.from("notes").insert(payload);
   scheduleReload();
 }
-export async function addReminder(title: string, at: Date) {
+export async function addReminder(title: string, at: Date, opts: { repeat?: Repeat; alarm?: boolean } = {}) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima";
-  await supabase.from("reminders").insert({ title, fire_at: at.toISOString(), timezone });
+  await supabase.from("reminders").insert({ title, fire_at: at.toISOString(), timezone, repeat: opts.repeat ?? "none", alarm: opts.alarm ?? true });
   scheduleReload();
+}
+export async function deleteTask(id: string) {
+  patch("tasks", id, null);
+  await supabase.from("tasks").delete().eq("id", id);
+}
+export async function clearDoneTasks() {
+  const ids = state.tasks.filter((t) => t.done).map((t) => t.id);
+  if (!ids.length) return;
+  set({ tasks: state.tasks.filter((t) => !t.done) });
+  await supabase.from("tasks").delete().in("id", ids);
+}
+export async function updateNote(id: string, p: Partial<Note>) {
+  patch("notes", id, p);
+  await supabase.from("notes").update(p).eq("id", id);
+}
+export async function deleteNote(id: string) {
+  patch("notes", id, null);
+  await supabase.from("notes").delete().eq("id", id);
 }
 export async function deleteReminder(id: string) {
   patch("reminders", id, null);

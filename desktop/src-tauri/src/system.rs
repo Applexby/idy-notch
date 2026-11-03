@@ -54,29 +54,34 @@ pub fn spawn_system_watch(app: AppHandle) {
         imp::com_init();
         let mut tick: u64 = 0;
         let mut last_power: Option<Power> = None;
-        let mut last_fs: Option<bool> = None;
+        let mut last_fg: Option<u8> = None;
         let mut bt_known: Option<std::collections::HashMap<String, String>> = None;
         let mut class_cache = std::collections::HashMap::<String, bool>::new();
         loop {
-            // Pantalla completa (cada 1 s)
+            // Ventana en primer plano (cada 250 ms): 0 normal, 1 maximizada / tapa el notch, 2 pantalla completa
             let notch = app.get_webview_window("notch").and_then(|w| imp::raw_hwnd(&w));
-            let fs = imp::fullscreen(notch);
-            if last_fs != Some(fs) {
-                let _ = app.emit("fullscreen", fs);
-                last_fs = Some(fs);
+            if let Some(fg) = imp::foreground(notch) {
+                if last_fg != Some(fg) {
+                    let _ = app.emit("foreground", fg);
+                    let _ = app.emit("fullscreen", fg == 2);
+                    last_fg = Some(fg);
+                }
+            }
+            // Inactividad (cada 1 s)
+            if tick % 4 == 0 {
+                let _ = app.emit("idle", imp::idle_secs());
             }
             // Batería (cada 2 s)
-            if tick % 2 == 0 {
+            if tick % 8 == 0 {
                 if let Some(p) = imp::power() {
                     if last_power.as_ref() != Some(&p) {
                         let _ = app.emit("power", &p);
                         last_power = Some(p);
                     }
                 }
-                let _ = app.emit("idle", imp::idle_secs());
             }
             // Auriculares Bluetooth (cada 4 s)
-            if tick % 4 == 0 {
+            if tick % 16 == 0 {
                 if let Some(now) = imp::bt_audio(&mut class_cache) {
                     if let Some(prev) = &bt_known {
                         for (id, name) in &now {
@@ -94,7 +99,7 @@ pub fn spawn_system_watch(app: AppHandle) {
                 }
             }
             tick += 1;
-            std::thread::sleep(Duration::from_millis(1000));
+            std::thread::sleep(Duration::from_millis(250));
         }
     });
 }
@@ -112,7 +117,9 @@ mod imp {
     use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
     use windows::Win32::System::SystemInformation::GetTickCount;
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
-    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowLongW, GetWindowRect, IsZoomed, GWL_STYLE, WS_CAPTION,
+    };
 
     pub fn com_init() {
         unsafe {
@@ -131,35 +138,55 @@ mod imp {
         w.hwnd().ok().map(|h| h.0 as isize)
     }
 
-    pub fn fullscreen(notch: Option<isize>) -> bool {
+    /// 0 = normal, 1 = maximizada o tapa la zona del notch, 2 = pantalla completa real.
+    /// None = el foco está en el propio notch (no cambiar nada).
+    pub fn foreground(notch: Option<isize>) -> Option<u8> {
         unsafe {
             let fg = GetForegroundWindow();
-            if fg.0.is_null() || Some(fg.0 as isize) == notch {
-                return false;
+            if fg.0.is_null() {
+                return Some(0);
+            }
+            if Some(fg.0 as isize) == notch {
+                return None;
             }
             let mut buf = [0u16; 64];
             let n = GetClassNameW(fg, &mut buf);
             let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
-            if matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd") {
-                return false;
+            if matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow") {
+                return Some(0);
             }
             let mut wr = RECT::default();
             if GetWindowRect(fg, &mut wr).is_err() {
-                return false;
+                return Some(0);
             }
             let mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
             if let Some(nh) = notch {
                 let notch_mon = MonitorFromWindow(HWND(nh as *mut c_void), MONITOR_DEFAULTTONEAREST);
                 if notch_mon != mon {
-                    return false;
+                    return Some(0);
                 }
             }
             let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
             if !GetMonitorInfoW(mon, &mut mi).as_bool() {
-                return false;
+                return Some(0);
             }
             let m = mi.rcMonitor;
-            wr.left <= m.left && wr.top <= m.top && wr.right >= m.right && wr.bottom >= m.bottom
+            let zoomed = IsZoomed(fg).as_bool();
+            let style = GetWindowLongW(fg, GWL_STYLE) as u32;
+            let has_caption = style & WS_CAPTION.0 == WS_CAPTION.0;
+            let covers = wr.left <= m.left && wr.top <= m.top && wr.right >= m.right && wr.bottom >= m.bottom;
+            if covers && !zoomed && !has_caption {
+                return Some(2);
+            }
+            if zoomed || covers {
+                return Some(1);
+            }
+            // Ventana pegada arriba que pasa por el centro (donde está el notch)
+            let cx = (m.left + m.right) / 2;
+            if wr.top <= m.top + 6 && wr.left < cx + 150 && wr.right > cx - 150 {
+                return Some(1);
+            }
+            Some(0)
         }
     }
 
@@ -224,7 +251,7 @@ mod imp {
     pub fn com_init() {}
     pub fn cursor() -> Option<(f64, f64)> { None }
     pub fn raw_hwnd(_w: &tauri::WebviewWindow) -> Option<isize> { None }
-    pub fn fullscreen(_n: Option<isize>) -> bool { false }
+    pub fn foreground(_n: Option<isize>) -> Option<u8> { Some(0) }
     pub fn power() -> Option<Power> { None }
     pub fn idle_secs() -> u64 { 0 }
     pub fn bt_audio(_c: &mut HashMap<String, bool>) -> Option<HashMap<String, String>> { None }

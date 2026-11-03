@@ -8,6 +8,7 @@ export interface Settings {
   mascot: boolean;
   sounds: boolean;
   hideFullscreen: boolean;
+  dodgeMaximized: boolean;
   monitor: string | null; // nombre del monitor; null = principal
   openOn: "hover" | "click";
   pageIcons: boolean;
@@ -30,7 +31,7 @@ export interface Settings {
 }
 
 export const DEFAULTS: Settings = {
-  size: "auto", minimal: false, mascot: true, sounds: true, hideFullscreen: true, monitor: null,
+  size: "auto", minimal: false, mascot: true, sounds: true, hideFullscreen: true, dodgeMaximized: true, monitor: null,
   openOn: "hover", pageIcons: true, animSpeed: "normal",
   showLyrics: true, lyricsInClosed: true,
   todoRemindStart: true, todoRemindEnd: true, snoozeMin: 10,
