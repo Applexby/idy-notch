@@ -113,7 +113,7 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("IDY Notch")
                 .menu(&menu)
-                .menu_on_left_click(false)
+                .show_menu_on_left_click(false)
                 .on_menu_event(|app, ev| match ev.id.as_ref() {
                     "settings" => show_settings(app, None),
                     "toggle" => toggle_notch(app),
