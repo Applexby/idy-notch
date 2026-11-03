@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { fileSrc, openPath, startFileDrag } from "../../lib/native";
-import { addText, clearShelf, IMAGE_EXT, removePaths, shelf, type ShelfItem } from "../../lib/shelf";
+import { clipboardFiles, fileSrc, openPath, startFileDrag } from "../../lib/native";
+import { addPaths, addText, clearShelf, IMAGE_EXT, removePaths, shelf, type ShelfItem } from "../../lib/shelf";
 import { Ico } from "../icons";
 
 const EXT_COLOR: Record<string, string> = {
@@ -31,15 +31,21 @@ export default function ShelfPage() {
 
   // Ctrl+V con el Estante abierto → tarjeta de texto
   useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
+    const onPaste = async (e: ClipboardEvent) => {
       if ((e.target as HTMLElement)?.tagName?.match(/INPUT|TEXTAREA/)) return;
+      e.preventDefault();
       const t = e.clipboardData?.getData("text/plain");
-      if (t?.trim()) { e.preventDefault(); addText(t); say("Texto guardado"); }
+      // Archivos o carpetas copiados en el Explorador
+      const files = await clipboardFiles();
+      if (files.length) { addPaths(files); say(files.length === 1 ? "Archivo agregado" : `${files.length} archivos agregados`); return; }
+      if (t?.trim()) { addText(t); say("Texto guardado"); }
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
   }, []);
   const pasteBtn = async () => {
+    const files = await clipboardFiles();
+    if (files.length) { addPaths(files); say(files.length === 1 ? "Archivo agregado" : `${files.length} archivos agregados`); return; }
     try { const t = await navigator.clipboard.readText(); if (t.trim()) { addText(t); say("Texto guardado"); } else say("El portapapeles está vacío"); }
     catch { say("Pulsa Ctrl+V aquí"); }
   };
@@ -71,7 +77,7 @@ export default function ShelfPage() {
       <div className="pg-head">
         <strong>Estante <span className="muted">{items.length || ""}</span>{flash && <span className="flash">{flash}</span>}</strong>
         <div className="row">
-          <button className="nb small ghost" onClick={pasteBtn} title="Pegar texto (Ctrl+V)"><Ico n="paste" s={13} /> Pegar texto</button>
+          <button className="nb small ghost" onClick={pasteBtn} title="Pegar archivos o texto (Ctrl+V)"><Ico n="paste" s={13} /> Pegar</button>
           {selected.length > 0 && <button className="nb small" onClick={() => removePaths(selected)}><Ico n="trash" s={13} /> Quitar {selected.length}</button>}
           {items.length > 0 && <button className="nb small ghost" onClick={clearShelf}>Vaciar</button>}
         </div>
@@ -79,8 +85,8 @@ export default function ShelfPage() {
       {dragging || !items.length ? (
         <div className={`dropzone ${dragging ? "hot" : ""}`}>
           <Ico n="shelf" s={24} />
-          <span>{dragging ? "Suelta para guardar aquí" : "Arrastra archivos al notch para tenerlos a mano"}</span>
-          {!dragging && <small>Pega textos con Ctrl+V · clic para abrir o copiar · arrástralos fuera cuando quieras</small>}
+          <span>{dragging ? "Suelta para guardar aquí" : "Suelta archivos aquí para tenerlos a mano"}</span>
+          {!dragging && <small>Arrastra o pega (Ctrl+V) archivos, carpetas o textos · clic para abrir o copiar · arrástralos fuera cuando quieras</small>}
         </div>
       ) : (
         <div className="tiles scroll" onWheel={(e) => { e.currentTarget.scrollLeft += e.deltaY; }}>

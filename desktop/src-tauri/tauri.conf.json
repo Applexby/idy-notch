@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "IDY Notch",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "identifier": "app.idynotch.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -62,6 +62,18 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNCMzAyNjVFQUE3QzY0RTUKUldUbFpIeXFYaVl3TzRWb2tqUmVTZEhKb3g4K2xDL3NTVTM3blpKb1FsYlR0NUo0bHRtcEl6NDcK",
+      "endpoints": [
+        "https://github.com/Applexby/idy-notch/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

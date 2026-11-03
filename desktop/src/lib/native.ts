@@ -74,3 +74,6 @@ export async function openUrl(url: string) {
   const { openUrl } = await import("@tauri-apps/plugin-opener");
   await openUrl(url).catch(console.error);
 }
+
+export const clipboardFiles = () => invoke<string[]>("clipboard_files").then((v) => v ?? []).catch(() => [] as string[]);
+export const openWeb = (url: string) => (IS_TAURI ? invoke("open_web", { url }) : Promise.resolve(window.open(url, "_blank"))).catch(console.error);

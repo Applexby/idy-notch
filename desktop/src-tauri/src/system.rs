@@ -34,7 +34,9 @@ pub fn spawn_hover_watch(app: AppHandle, shared: Arc<Shared>) {
         loop {
             let r = *shared.hit.lock().unwrap();
             if let Some((cx, cy)) = imp::cursor() {
-                let m = 1.0;
+                // Arrastrando algo (botón izquierdo pulsado): zona más generosa para que el
+                // notch acepte el archivo apenas llegue el cursor.
+                let m = if imp::mouse_down() { 40.0 } else { 1.0 };
                 let inside = r.w > 0.0
                     && cx >= r.x - m && cx <= r.x + r.w + m
                     && cy >= r.y - m && cy <= r.y + r.h + m;
@@ -114,6 +116,10 @@ pub fn spawn_system_watch(app: AppHandle, shared: Arc<Shared>) {
     });
 }
 
+pub fn clipboard_files() -> Vec<String> {
+    imp::clipboard_files()
+}
+
 #[cfg(windows)]
 mod imp {
     use super::Power;
@@ -132,11 +138,41 @@ mod imp {
         GWL_STYLE, WS_CAPTION,
     };
     use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+    use windows::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
 
     pub fn com_init() {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
+    }
+
+    pub fn mouse_down() -> bool {
+        unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
+    }
+
+    /// Rutas de archivos/carpetas copiados en el Explorador (Ctrl+C)
+    pub fn clipboard_files() -> Vec<String> {
+        let mut out = Vec::new();
+        unsafe {
+            if OpenClipboard(HWND::default()).is_err() {
+                return out;
+            }
+            if let Ok(h) = GetClipboardData(15) {
+                // 15 = CF_HDROP
+                let drop = HDROP(h.0);
+                let n = DragQueryFileW(drop, 0xFFFF_FFFF, None);
+                for i in 0..n {
+                    let len = DragQueryFileW(drop, i, None) as usize;
+                    let mut buf = vec![0u16; len + 1];
+                    let got = DragQueryFileW(drop, i, Some(&mut buf)) as usize;
+                    out.push(String::from_utf16_lossy(&buf[..got]));
+                }
+            }
+            let _ = CloseClipboard();
+        }
+        out
     }
 
     pub fn cursor() -> Option<(f64, f64)> {
@@ -279,6 +315,8 @@ mod imp {
     use std::collections::HashMap;
     pub fn com_init() {}
     pub fn cursor() -> Option<(f64, f64)> { None }
+    pub fn mouse_down() -> bool { false }
+    pub fn clipboard_files() -> Vec<String> { Vec::new() }
     pub fn raw_hwnd(_w: &tauri::WebviewWindow) -> Option<isize> { None }
     pub fn foreground(_n: Option<isize>) -> Option<(u8, String)> { Some((0, String::new())) }
     pub fn power() -> Option<Power> { None }

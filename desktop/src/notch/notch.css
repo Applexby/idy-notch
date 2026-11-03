@@ -298,3 +298,9 @@ button.note-card:hover { background: #18181b; transform: translateY(-1px); }
 /* Tarjeta de texto en el Estante */
 .thumb.txt { background: #f5f5f7; color: #1c1c1e; padding: 5px; align-items: flex-start; justify-content: flex-start; }
 .thumb.txt span { font-size: 6.5px; line-height: 1.25; overflow: hidden; text-align: left; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
+
+/* v1.3 */
+.c-charge { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #30d158; color: #30d158; display: grid; place-items: center; flex: none; }
+.closed-music .c-time { flex: 1; text-align: center; }
+.dots .gear.has-update { color: #64d2ff; position: relative; }
+.dots .gear.has-update::after { content: ""; position: absolute; top: 1px; right: 1px; width: 6px; height: 6px; border-radius: 50%; background: #64d2ff; box-shadow: 0 0 0 2px #000; }

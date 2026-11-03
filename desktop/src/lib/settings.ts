@@ -29,6 +29,7 @@ export interface Settings {
   alarmLoop: boolean;
   volume: number; // 0..1
   pages: PageId[];
+  webUrl: string;
 }
 
 export const DEFAULTS: Settings = {
@@ -40,6 +41,7 @@ export const DEFAULTS: Settings = {
   shelfStartEmpty: false, hudCharging: true, hudHeadphones: true,
   alarmLoop: true, volume: 0.7,
   pages: ["music", "focus", "shelf", "tasks", "notes", "reminders"],
+  webUrl: "https://idy-notch.vercel.app",
 };
 
 export const PAGE_LABEL: Record<PageId, string> = {

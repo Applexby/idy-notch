@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usernameToEmail } from "@shared/config";
-import { autostart, invoke, IS_TAURI, on, openUrl, quitApp } from "../lib/native";
+import { autostart, invoke, IS_TAURI, on, openUrl, openWeb, quitApp } from "../lib/native";
+import { checkUpdate, installUpdate, updates } from "../lib/update";
 import { PAGE_LABEL, setSettings, useSettings, type PageId, type Settings } from "../lib/settings";
 import { supabase } from "../lib/supa";
 import { alarm, chime } from "../lib/sound";
@@ -267,6 +268,21 @@ function Hud() {
   </>;
 }
 
+function WebApp() {
+  const s = useSettings();
+  return (
+    <Group title="Web app">
+      <Row label="Abrir la web de IDY" hint="La misma app del iPhone, en una ventana del PC: grupos, notas, tareas y recordatorios completos">
+        <button className="btn small primary-s" onClick={() => openWeb(s.webUrl)}>Abrir</button>
+      </Row>
+      <div className="srow col">
+        <div className="srow-t"><div>Dirección</div><small>La de tu proyecto en Vercel</small></div>
+        <input className="in" value={s.webUrl} onChange={(e) => setSettings({ webUrl: e.target.value.trim() })} spellCheck={false} />
+      </div>
+    </Group>
+  );
+}
+
 function Account() {
   const [session, setSession] = useState<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>(null);
   const [profile, setProfile] = useState<{ username: string; display_name: string | null } | null>(null);
@@ -310,6 +326,7 @@ function Account() {
         <button className="btn small" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
       </div>
     </Group>
+    <WebApp />
     <p className="note">Grupos, invitaciones y notificaciones del iPhone se gestionan desde la web app (Ajustes).</p>
   </>;
 
@@ -328,7 +345,27 @@ function Account() {
         <button className="btn primary" disabled={busy || !u || !p} onClick={submit}>{busy ? "Un momento…" : mode === "login" ? "Entrar" : "Crear y entrar"}</button>
       </div>
     </Group>
+    <WebApp />
   </>;
+}
+
+function Updates() {
+  const u = updates.use();
+  useEffect(() => { if (u.status === "idle") checkUpdate(); }, []);
+  const msg = {
+    idle: "", checking: "Buscando…", none: "Tienes la última versión", available: `Versión ${u.version} disponible`,
+    downloading: `Descargando… ${Math.round(u.progress * 100)}%`, ready: "Instalando…", error: "No se pudo buscar actualizaciones",
+  }[u.status];
+  return (
+    <Group title="Actualizaciones">
+      <Row label={msg || "Actualizaciones"} hint={u.status === "error" ? "Revisa tu conexión o que las versiones estén publicadas en GitHub" : u.status === "available" ? "Se descarga, se instala y IDY se reinicia solo" : undefined}>
+        {u.status === "available" || u.status === "downloading" || u.status === "ready"
+          ? <button className="btn small primary-s" disabled={u.status !== "available"} onClick={installUpdate}>Actualizar ahora</button>
+          : <button className="btn small" disabled={u.status === "checking"} onClick={checkUpdate}>Buscar</button>}
+      </Row>
+      {u.status === "downloading" && <div className="srow"><div className="pbar"><i style={{ width: `${u.progress * 100}%` }} /></div></div>}
+    </Group>
+  );
 }
 
 function Diag() {
@@ -353,11 +390,12 @@ function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.2.0 · Un notch vivo para Windows</small>
+    <small>Versión 1.3.0 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
       <Row label="Hecho por"><span className="muted">Applexby</span></Row>
     </Group>
+    <Updates />
     <Diag />
     <button className="btn danger" onClick={() => quitApp()}>Salir de IDY</button>
   </div>;

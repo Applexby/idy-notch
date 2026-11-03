@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths: ["desktop/**", "shared/**", ".github/workflows/desktop.yml"]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -13,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # Las actualizaciones automáticas necesitan la clave de firma (secreto del repo)
+      HAS_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,16 +34,55 @@ jobs:
 
       - name: Compilar instalador
         working-directory: desktop
-        run: npx tauri build
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ "$HAS_KEY" = "true" ]; then
+            npx tauri build
+          else
+            echo "Sin clave de firma: se compila sin actualizaciones automáticas"
+            npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          fi
 
-      - name: Subir instaladores
+      - name: Preparar archivos
+        id: prep
+        shell: bash
+        run: |
+          VER=$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          mkdir -p out
+          SRC=$(ls desktop/src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
+          cp "$SRC" "out/IDY-Notch_${VER}_x64-setup.exe"
+          if [ -f "$SRC.sig" ]; then
+            node -e '
+              const fs = require("fs");
+              const [ver, sig] = [process.argv[1], fs.readFileSync(process.argv[2], "utf8").trim()];
+              fs.writeFileSync("out/latest.json", JSON.stringify({
+                version: ver,
+                notes: "Nueva versión de IDY Notch",
+                pub_date: new Date().toISOString(),
+                platforms: { "windows-x86_64": { signature: sig,
+                  url: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${ver}/IDY-Notch_${ver}_x64-setup.exe` } },
+              }, null, 2));
+            ' "$VER" "$SRC.sig"
+          fi
+          ls -la out
+
+      - name: Subir instalador
         uses: actions/upload-artifact@v4
         with:
           name: IDY-Notch-Windows
-          path: desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          path: out/*-setup.exe
 
-      - name: Publicar versión (solo con tag v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publicar versión (con actualización automática)
+        if: env.HAS_KEY == 'true' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          files: desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          tag_name: v${{ steps.prep.outputs.version }}
+          name: IDY Notch ${{ steps.prep.outputs.version }}
+          make_latest: true
+          files: |
+            out/*-setup.exe
+            out/latest.json

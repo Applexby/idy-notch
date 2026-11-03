@@ -78,6 +78,33 @@ async fn save_text_card(app: AppHandle, text: String) -> Result<String, String> 
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// Archivos copiados en el Explorador, para pegarlos en el Estante
+#[tauri::command]
+fn clipboard_files() -> Vec<String> {
+    system::clipboard_files()
+}
+
+/// Abre la web app de IDY dentro de una ventana propia
+#[tauri::command]
+async fn open_web(app: AppHandle, url: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("web") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
+    WebviewWindowBuilder::new(&app, "web", WebviewUrl::External(parsed))
+        .title("IDY · Web")
+        .inner_size(430.0, 860.0)
+        .min_inner_size(360.0, 560.0)
+        .background_color(tauri::window::Color(0, 0, 0, 255))
+        .center()
+        .build()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
@@ -128,6 +155,25 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_drag::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        // Soltar archivos en el notch: se captura aquí (nativo) y se reenvía al Estante
+        .on_window_event(|window, event| {
+            if window.label() != "notch" {
+                return;
+            }
+            if let tauri::WindowEvent::DragDrop(dd) = event {
+                match dd {
+                    tauri::DragDropEvent::Enter { .. } => { let _ = window.emit("shelf-drag", true); }
+                    tauri::DragDropEvent::Leave => { let _ = window.emit("shelf-drag", false); }
+                    tauri::DragDropEvent::Drop { paths, .. } => {
+                        let list: Vec<String> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+                        let _ = window.emit("shelf-drop", list);
+                    }
+                    _ => {}
+                }
+            }
+        })
         .manage(shared.clone())
         .invoke_handler(tauri::generate_handler![
             set_hit_rect,
@@ -135,6 +181,8 @@ pub fn run() {
             open_settings,
             save_text_card,
             get_foreground,
+            clipboard_files,
+            open_web,
             quit_app
         ])
         .setup(move |app| {
@@ -143,9 +191,10 @@ pub fn run() {
             // ── Bandeja ──
             let settings = MenuItem::with_id(app, "settings", "Ajustes…", true, None::<&str>)?;
             let toggle = MenuItem::with_id(app, "toggle", "Ocultar / mostrar notch", true, None::<&str>)?;
+            let web = MenuItem::with_id(app, "web", "Abrir la web de IDY", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&settings, &toggle, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&settings, &web, &toggle, &sep, &quit])?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("IDY Notch")
@@ -154,6 +203,7 @@ pub fn run() {
                 .on_menu_event(|app, ev| match ev.id.as_ref() {
                     "settings" => show_settings(app, None),
                     "toggle" => toggle_notch(app),
+                    "web" => { let _ = app.emit("open-web", ()); }
                     "quit" => app.exit(0),
                     _ => {}
                 })

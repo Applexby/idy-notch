@@ -74,3 +74,8 @@ input[type=range] { accent-color: var(--green); width: 160px; }
 .aboutp section { width: 100%; max-width: 420px; text-align: left; }
 .lnk { color: var(--t2); font-size: 13px; }
 .lnk:hover { color: var(--t1); }
+
+.btn.primary-s { background: var(--green); color: #000; }
+.btn:disabled { opacity: .5; }
+.pbar { flex: 1; height: 6px; border-radius: 4px; background: #1a1a1c; overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--green); transition: width .2s; }

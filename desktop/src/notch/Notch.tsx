@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IS_TAURI, on, openSettings, setHitRect } from "../lib/native";
-import { PAGE_LABEL, useSettings, type PageId } from "../lib/settings";
+import { on, openSettings, openWeb, setHitRect } from "../lib/native";
+import { checkUpdate, updates } from "../lib/update";
+import { getSettings, PAGE_LABEL, useSettings, type PageId } from "../lib/settings";
 import { focus, FOCUS_LABEL, onFocusDone, remaining, total } from "../lib/focus";
 import { addPaths, shelf } from "../lib/shelf";
 import { alarm as alarmSound, chime } from "../lib/sound";
@@ -22,7 +23,7 @@ type Geo = { w: number; h: number; r: number };
 const G = {
   resting: { w: 214, h: 32, r: 15 },
   minimal: { w: 112, h: 5, r: 3 },
-  music: { w: 300, h: 32, r: 15 },
+  music: { w: 236, h: 32, r: 15 },
   focus: { w: 272, h: 32, r: 15 },
   mascot: { w: 214, h: 32, r: 15 },
   hud: { w: 380, h: 40, r: 20 },
@@ -128,18 +129,36 @@ export default function Notch() {
     }
   }, [sys.hover, s.openOn, inputHold, sh.dragging, current]);
 
-  // Arrastrar archivos al notch → abre el Estante
+  // Arrastrar archivos al notch → abre el Estante (los eventos llegan desde Rust)
   useEffect(() => {
-    if (!IS_TAURI) return;
-    let un: (() => void) | undefined;
-    import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
-      const p = e.payload;
-      if (p.type === "enter") { shelf.set({ dragging: true }); setOpen(true); if (pages.includes("shelf")) setPage("shelf"); }
-      else if (p.type === "drop") { shelf.set({ dragging: false }); addPaths(p.paths); }
-      else if (p.type === "leave") shelf.set({ dragging: false });
-    })).then((f) => { un = f; });
-    return () => un?.();
+    const u1 = on<boolean>("shelf-drag", (v) => {
+      shelf.set({ dragging: v });
+      if (v) { setOpen(true); if (pages.includes("shelf")) setPage("shelf"); }
+    });
+    const u2 = on<string[]>("shelf-drop", (paths) => {
+      shelf.set({ dragging: false });
+      addPaths(paths);
+      setOpen(true);
+      if (pages.includes("shelf")) setPage("shelf");
+    });
+    const u3 = on("open-web", () => openWeb(getSettings().webUrl));
+    return () => { [u1, u2, u3].forEach((u) => u.then((f) => f())); };
   }, [pages.join()]);
+
+  // Buscar actualizaciones al iniciar y cada 6 h
+  const upd = updates.use();
+  useEffect(() => {
+    const t = setTimeout(checkUpdate, 15e3);
+    const i = setInterval(checkUpdate, 6 * 3600e3);
+    return () => { clearTimeout(t); clearInterval(i); };
+  }, []);
+  const announced = useRef(false);
+  useEffect(() => {
+    if (upd.status === "available" && !announced.current) {
+      announced.current = true;
+      pushHud({ icon: "download", color: "#64d2ff", title: `IDY ${upd.version} disponible`, sub: "Ajustes › Acerca de" });
+    }
+  }, [upd.status]);
 
   // Cambiar de página con rueda / flechas
   const wheelLock = useRef(0);
@@ -236,7 +255,9 @@ export default function Notch() {
         {mode === "closed" && (
           <div className="c-wrap" key={closed}>
             {closed === "resting" && <><span className="c-time">{time}</span><span className="c-date">{date}</span></>}
-            {closed === "music" && <><Art src={med.art} size={20} /><Bars on={playing} /></>}
+            {closed === "music" && <>
+              {sys.power?.charging ? <span className="c-charge"><Ico n="bolt" s={11} fill /></span> : <Art src={med.art} size={20} />}
+              <span className="c-time">{time}</span><Bars on={playing} /></>}
             {closed === "lyrics" && <><Art src={med.art} size={20} /><span className="c-lyric" key={lyricIdx}>{lyricText}</span><Bars on /></>}
             {closed === "focus" && <><Ring p={1 - remaining() / total()} color={f.mode === "focus" ? "#ff9f0a" : "#30d158"} />
               <span className="c-focus" style={{ color: f.mode === "focus" ? "#ff9f0a" : "#30d158" }}>{fmtMs(remaining())}</span></>}
@@ -287,7 +308,8 @@ export default function Notch() {
                   <i /><span className="dot-ico"><Ico n={PAGE_ICON[p]} s={14} /></span>
                 </button>
               ))}
-              <button className="gear" onClick={() => openSettings()} title="Ajustes" aria-label="Ajustes"><Ico n="gear" s={14} /></button>
+              <button className={`gear ${upd.status === "available" ? "has-update" : ""}`} onClick={() => openSettings(upd.status === "available" ? "about" : undefined)}
+                title={upd.status === "available" ? `Actualizar a ${upd.version}` : "Ajustes"} aria-label="Ajustes"><Ico n="gear" s={14} /></button>
             </nav>
           </div>
         )}
