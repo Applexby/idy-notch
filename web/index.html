@@ -17,16 +17,24 @@
     html, body { background: #000; margin: 0; }
     #splash { position: fixed; inset: 0; z-index: 100; background: #000; display: grid; place-items: center; transition: opacity .22s ease, transform .22s ease; }
     #splash.out { opacity: 0; transform: scale(1.06); pointer-events: none; }
-    #splash .n { width: 112px; height: 38px; border-radius: 0 0 22px 22px; background: #0c0c0e; display: flex; gap: 16px; justify-content: center; align-items: center;
-      box-shadow: 0 0 0 1px #2a2a2e, 0 10px 40px rgba(255,159,10,.22); animation: sp-in .3s cubic-bezier(.34,1.5,.5,1) both; }
-    #splash i { width: 10px; height: 15px; border-radius: 6px; background: #fff; animation: sp-blink .42s ease .12s both, sp-look .5s ease .1s both; }
+    #splash svg { width: 92px; height: 72px; animation: sp-in .32s cubic-bezier(.34,1.5,.5,1) both; filter: drop-shadow(0 10px 30px rgba(255,140,60,.25)); }
+    #splash .b { fill: #f5f1ea; } #splash .in { fill: #ff9a7a; } #splash .mz { fill: #d9cfc2; } #splash .ns { fill: #6b5646; }
+    #splash .e { fill: #111; transform-box: fill-box; transform-origin: center; animation: sp-blink .42s ease .14s both; }
+    #splash .ey { animation: sp-look .5s ease .1s both; }
     @keyframes sp-in { from { transform: scale(.6); opacity: 0; } }
     @keyframes sp-blink { 0%, 100% { transform: scaleY(1); } 45% { transform: scaleY(.1); } }
-    @keyframes sp-look { 30% { translate: -2px 0; } 70% { translate: 2px 0; } }
+    @keyframes sp-look { 30% { transform: translateX(-1.2px); } 70% { transform: translateX(1.2px); } }
   </style>
 </head>
 <body>
-  <div id="splash"><div class="n"><i></i><i></i></div></div>
+  <div id="splash"><svg viewBox="0 0 44 34" aria-hidden="true">
+    <path class="b" d="M14.2 2.2c-2 2.4-2.2 6.6-.9 9.4h2.6c.9-3 .6-6.9-1.7-9.4Z"/><path class="in" d="M14.3 4.6c-1 1.6-1.1 4.2-.4 6h1.2c.5-1.9.3-4.3-.8-6Z"/>
+    <path class="b" d="M29.8 2.2c2 2.4 2.2 6.6.9 9.4h-2.6c-.9-3-.6-6.9 1.7-9.4Z"/><path class="in" d="M29.7 4.6c1 1.6 1.1 4.2.4 6h-1.2c-.5-1.9-.3-4.3.8-6Z"/>
+    <rect class="b" x="15.6" y="25" width="12.8" height="9" rx="4"/><ellipse class="b" cx="22" cy="21" rx="10.6" ry="9.6"/>
+    <circle class="b" cx="15.6" cy="13.4" r="3.8"/><circle class="b" cx="19.2" cy="11" r="4.3"/><circle class="b" cx="24.6" cy="11" r="4.3"/><circle class="b" cx="28.4" cy="13.4" r="3.8"/><circle class="b" cx="22" cy="13.6" r="3.6"/>
+    <ellipse class="mz" cx="22" cy="25.4" rx="5.4" ry="3.5"/><circle class="ns" cx="20.6" cy="24.8" r=".55"/><circle class="ns" cx="23.4" cy="24.8" r=".55"/>
+    <g class="ey"><rect class="e" x="17.1" y="17.6" width="2.4" height="4.6" rx="1.2"/><rect class="e" x="24.5" y="17.6" width="2.4" height="4.6" rx="1.2"/></g>
+  </svg></div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

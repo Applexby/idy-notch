@@ -48,6 +48,7 @@ export function installMock() {
     if (sc === "dodge") sysStore.set({ foreground: 1 });
     if (sc === "lyrics" || sc === "open-lyrics") localStorage.setItem("idy-settings", JSON.stringify({ lyricsActive: true }));
     if (sc === "sleep") sysStore.set({ idle: 400 });
+    if (sc === "hello") { sysStore.set({ idle: 40 }); setTimeout(() => sysStore.set({ idle: 0 }), 400); }
     if (sc === "hud") setTimeout(() => mockEmit("bluetooth", { name: "AirBuds Pro", connected: true }), 50);
     if (sc === "charging") { mockEmit("power", { has_battery: true, charging: false, percent: 70 }); setTimeout(() => mockEmit("power", { has_battery: true, charging: true, percent: 70 }), 50); }
     if (sc.startsWith("open")) sysStore.set({ hover: true });

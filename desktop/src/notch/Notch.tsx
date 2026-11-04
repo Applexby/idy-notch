@@ -10,6 +10,7 @@ import { currentLine } from "../lib/lyrics";
 import { BASE_W, placeWindow, type Placement } from "../lib/window";
 import { mediaStore, sysStore, usePosition, useSystemHuds } from "./useNative";
 import { Ico, PAGE_ICON } from "./icons";
+import Llama, { type Mood } from "./Llama";
 import MusicPage from "./pages/Music";
 import FocusPage from "./pages/Focus";
 import ShelfPage from "./pages/Shelf";
@@ -366,11 +367,6 @@ function Ring({ p, color }: { p: number; color: string }) {
   );
 }
 
-function Mascot({ mood }: { mood: "awake" | "sleep" | "hello" }) {
-  return (
-    <span className={`mascot ${mood}`}>
-      <i className="eye" /><i className="eye" />
-      {mood === "sleep" && <span className="zz">z</span>}
-    </span>
-  );
+function Mascot({ mood }: { mood: Mood }) {
+  return <Llama mood={mood} />;
 }

@@ -41,6 +41,11 @@ function initial(): Sec {
 export default function SettingsApp() {
   const [sec, setSec] = useState<Sec>(initial);
   useEffect(() => { const u = on<string>("settings-page", (p) => setSec(p as Sec)); return () => { u.then((f) => f()); }; }, []);
+  const minimize = async () => {
+    if (!IS_TAURI) return;
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    getCurrentWindow().minimize();
+  };
   const close = async () => {
     if (!IS_TAURI) return;
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -49,7 +54,14 @@ export default function SettingsApp() {
   return (
     <div className="win">
       <aside className="side" data-tauri-drag-region>
-        <div className="lights" data-tauri-drag-region><button className="light" onClick={close} aria-label="Cerrar" /></div>
+        <div className="lights" data-tauri-drag-region>
+          <button className="light red" onClick={close} aria-label="Cerrar" title="Cerrar">
+            <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.6 2.6l4.8 4.8M7.4 2.6 2.6 7.4" /></svg>
+          </button>
+          <button className="light yellow" onClick={minimize} aria-label="Minimizar" title="Minimizar">
+            <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.4 5h5.2" /></svg>
+          </button>
+        </div>
         <nav>
           {SECS.map((s) => (
             <button key={s.id} className={sec === s.id ? "on" : ""} onClick={() => setSec(s.id)}>
@@ -270,15 +282,18 @@ function Hud() {
 
 function WebApp() {
   const s = useSettings();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(s.webUrl); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* sin portapapeles */ }
+  };
   return (
     <Group title="Web app">
       <Row label="Abrir la web de IDY" hint="La misma app del iPhone, en una ventana del PC: grupos, notas, tareas y recordatorios completos">
         <button className="btn small primary-s" onClick={() => openWeb(s.webUrl)}>Abrir</button>
       </Row>
-      <div className="srow col">
-        <div className="srow-t"><div>Dirección</div><small>La de tu proyecto en Vercel</small></div>
-        <input className="in" value={s.webUrl} onChange={(e) => setSettings({ webUrl: e.target.value.trim() })} spellCheck={false} />
-      </div>
+      <Row label="Copiar enlace" hint="Para abrirla en el iPhone o pasársela a un amigo">
+        <button className="btn small" onClick={copy}>{copied ? "Copiado ✓" : "Copiar"}</button>
+      </Row>
     </Group>
   );
 }
@@ -390,7 +405,7 @@ function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.5.0 · Un notch vivo para Windows</small>
+    <small>Versión 1.6.0 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
       <Row label="Hecho por"><span className="muted">Applexby</span></Row>

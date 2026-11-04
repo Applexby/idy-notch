@@ -28,7 +28,7 @@ export default function Auth() {
   return (
     <div className="auth">
       <div className="auth-hero">
-        <div className="notch-logo big"><i /><i /></div>
+        <img className="hero-icon" src="/icons/icon-192.png" width={96} height={96} alt="" />
         <h1>IDY</h1>
         <p>Recordatorios, notas y tareas que viven en tu notch.</p>
       </div>
