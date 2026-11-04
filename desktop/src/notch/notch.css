@@ -404,3 +404,7 @@ button.note-card:hover { background: #18181b; transform: translateY(-1px); }
 @keyframes ll-hop { 50% { transform: translateY(-2.5px); } }
 @keyframes ll-wave-l { 50% { transform: rotate(-18deg); } }
 @keyframes ll-wave-r { 50% { transform: rotate(18deg); } }
+
+.spin-in { width: 52px; text-align: center; background: transparent; border: 0; border-radius: 8px; font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums;
+  line-height: 1.05; letter-spacing: -.02em; padding: 0; color: var(--t1); caret-color: #ff9f0a; }
+.spin-in:focus { background: #1d1d20; }

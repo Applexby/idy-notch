@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IDY · Guía</title>
+<meta name="description" content="Cómo usar IDY: el notch vivo para Windows, la web para iPhone y los grupos con amigos.">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e11" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Concepto: la página tiene su propio notch real colgando arriba; al bajar, el notch
+   cambia para mostrar lo que explica cada sección. Todo lo demás es texto con aire. */
+:root {
+  --bg: #f4f5f7;
+  --ink: #121318;
+  --soft: #555a66;
+  --faint: #8a8f9b;
+  --rule: rgba(18, 19, 24, .09);
+  --accent: #ff6a2b;
+  --notch: #000;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.32, .5, 1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d0e11; --ink: #eef0f4; --soft: #a3a8b4; --faint: #6c717d; --rule: rgba(238, 240, 244, .1); --accent: #ff8a52; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.65 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -.025em; text-wrap: balance; margin: 0; font-weight: 700; }
+h2 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.05; }
+h3 { font-size: 21px; line-height: 1.25; letter-spacing: -.015em; }
+p { margin: 0; }
+.soft { color: var(--soft); }
+kbd { font: 600 .82em var(--body); padding: 1px 7px; border-radius: 6px; border: 1px solid var(--rule); border-bottom-width: 2px; white-space: nowrap; }
+
+/* ── El notch de la página ── */
+.dock { position: fixed; top: 0; left: 0; right: 0; z-index: 40; display: flex; justify-content: center; pointer-events: none; }
+.stage { transform: scale(var(--k, 1)); transform-origin: top center; }
+.notch { position: relative; width: var(--w, 196px); height: var(--h, 30px); background: var(--notch); color: #f5f5f7; border-radius: 0 0 var(--r, 14px) var(--r, 14px);
+  transition: width .55s var(--spring), height .55s var(--spring), border-radius .55s var(--spring), background .8s ease; font: 13px/1.3 "Segoe UI", var(--body);
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.55); pointer-events: auto; }
+.notch.tint { background: linear-gradient(180deg, #000 0%, #000 40%, color-mix(in srgb, var(--tint, #7a4a2a) 55%, #000) 100%); }
+.ear { position: absolute; top: 0; width: 11px; height: 11px; }
+.ear.l { left: -11px; background: radial-gradient(circle at 0 100%, transparent 10.5px, var(--notch) 11px); }
+.ear.r { right: -11px; background: radial-gradient(circle at 100% 100%, transparent 10.5px, var(--notch) 11px); }
+.notch.sliver .ear { opacity: 0; }
+.clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.v { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; animation: vin .4s ease .1s both; }
+@keyframes vin { from { opacity: 0; filter: blur(4px); transform: scale(.95); } }
+.t { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mid { flex: 1; text-align: center; }
+.bolt { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #30d158; color: #30d158; display: grid; place-items: center; flex: none; font-size: 9px; }
+.art { width: 18px; height: 18px; border-radius: 5px; flex: none; background: linear-gradient(135deg, #f5a623, #d0021b 70%, #4a0d2a); }
+.art.big { width: 70px; height: 70px; border-radius: 12px; box-shadow: 0 8px 20px -8px #000; background: radial-gradient(circle at 68% 30%, #ffe2a3 0 11%, transparent 12%), linear-gradient(135deg, #f5a623, #d0021b 70%, #4a0d2a); }
+.bars { display: inline-flex; gap: 2px; align-items: center; height: 14px; }
+.bars b { width: 2.5px; height: 4px; border-radius: 2px; background: #ff375f; animation: eq 1s ease-in-out infinite; }
+.bars b:nth-child(2) { animation-delay: -.35s; } .bars b:nth-child(3) { animation-delay: -.6s; } .bars b:nth-child(4) { animation-delay: -.15s; }
+@keyframes eq { 50% { height: 13px; } }
+.lyr { flex: 1; text-align: center; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: up .45s var(--spring) both; }
+@keyframes up { from { opacity: 0; transform: translateY(7px); filter: blur(3px); } }
+.hud { justify-content: flex-start; gap: 11px; padding: 0 16px; }
+.hud b { flex: 1; font-weight: 650; }
+.meter { width: 46px; height: 5px; border-radius: 3px; background: #2a2a2e; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 72%; background: #30d158; }
+.open { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 7px; padding: 14px 20px 24px; }
+.row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ttl { min-width: 0; flex: 1; }
+.ttl strong { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ttl small { display: block; color: #a1a1a6; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seek { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rail { flex: 1; height: 4px; border-radius: 3px; background: #3a3a3e; position: relative; }
+.rail i { position: absolute; inset: 0 auto 0 0; width: 34%; background: #e5e5ea; border-radius: 3px; animation: prog 24s linear infinite; }
+@keyframes prog { to { width: 100%; } }
+.ctl { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; color: #f5f5f7; font-size: 15px; }
+.ctl .c { display: flex; gap: 22px; align-items: center; }
+.ctl .r { justify-self: end; display: flex; gap: 8px; align-items: center; }
+.vol { width: 64px; height: 4px; border-radius: 3px; background: #3a3a3e; position: relative; }
+.vol i { position: absolute; inset: 0 auto 0 0; width: 62%; background: #e5e5ea; border-radius: 3px; }
+.top-line { text-align: center; font-size: 11.5px; color: #a1a1a6; margin-top: -6px; }
+.top-line b { color: #f5f5f7; }
+.dots { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+.dots i { width: 4px; height: 4px; border-radius: 50%; background: #48484c; }
+.dots i.on { width: 12px; border-radius: 3px; background: #f5f5f7; }
+.split { display: grid; grid-template-columns: 1fr 1.1fr; gap: 16px; height: 100%; padding: 16px 20px 26px; }
+.split .lyrics { border-left: 1px solid rgba(255,255,255,.1); padding-left: 14px; display: flex; flex-direction: column; justify-content: center; gap: 4px; font-weight: 650; font-size: 13px; color: #8a7e78; }
+.split .lyrics .on { color: #fff; font-size: 14.5px; }
+.tiles { display: flex; gap: 12px; margin-top: 4px; }
+.tile { width: 58px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 9.5px; color: #a1a1a6; text-align: center; }
+.tile span { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; font: 700 8px var(--body); }
+.picker { display: grid; grid-template-columns: auto auto 1fr; gap: 18px; align-items: center; background: #0e0e10; border-radius: 14px; padding: 8px 14px; }
+.pk-num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.chip { display: inline-block; font-size: 10.5px; font-weight: 650; padding: 3px 9px; border-radius: 10px; background: #1d1d20; color: #a1a1a6; margin-right: 3px; }
+.chip.on { background: #f5f5f7; color: #000; }
+.go { margin-top: 7px; background: #ff9f0a; color: #000; font-weight: 700; font-size: 11.5px; border-radius: 9px; padding: 6px 10px; text-align: center; }
+.todo-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; font-weight: 600; margin-top: 2px; }
+.todo-list span { display: flex; align-items: center; gap: 8px; }
+.todo-list i { width: 13px; height: 13px; border-radius: 50%; border: 1.8px solid; flex: none; }
+.todo-list .done { color: #636366; text-decoration: line-through; }
+.todo-list .done i { background: #64d2ff; border-color: #64d2ff; }
+.alarm { gap: 15px; padding: 14px 20px; justify-content: flex-start; }
+.ring { width: 50px; height: 50px; border-radius: 50%; background: #ff9f0a; color: #000; display: grid; place-items: center; flex: none; font-size: 22px; animation: ringing 1.6s infinite; }
+@keyframes ringing { 0% { box-shadow: 0 0 0 0 rgba(255,159,10,.55); } 8% { transform: rotate(-12deg); } 16% { transform: rotate(10deg); } 24% { transform: rotate(-5deg); } 32% { transform: rotate(0); } 70%, 100% { box-shadow: 0 0 0 14px rgba(255,159,10,0); } }
+.alarm small { color: #ff9f0a; font-weight: 700; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; }
+.alarm strong { display: block; font-size: 16px; margin: 1px 0 8px; }
+.btn-n { display: inline-block; font-size: 11px; font-weight: 650; padding: 5px 11px; border-radius: 8px; background: #1d1d20; margin-right: 4px; }
+.btn-n.w { background: #f5f5f7; color: #000; }
+
+/* La llama */
+.llama { display: flex; justify-content: center; align-items: flex-end; width: 100%; height: 100%; position: relative; }
+.llama svg { width: 40px; height: 31px; margin-bottom: -3px; overflow: visible; }
+.llama .b { fill: #f5f1ea; } .llama .in { fill: #ff9a7a; } .llama .mz { fill: #d9cfc2; } .llama .ns { fill: #6b5646; }
+.llama .e { fill: #111; transform-box: fill-box; transform-origin: center; }
+.llama .hp { fill: none; stroke: #111; stroke-width: 1.3; stroke-linecap: round; }
+.llama .body, .llama .ear { transform-box: fill-box; transform-origin: 50% 100%; }
+.llama.awake .eyes { animation: look 7s ease-in-out infinite; }
+.llama.awake .e { animation: blink 4.6s infinite; }
+@keyframes look { 0%, 36%, 100% { transform: translateX(0); } 44%, 56% { transform: translateX(-1.4px); } 64%, 76% { transform: translateX(1.4px); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.llama.sleep .body { animation: doze 4s ease-in-out infinite; }
+@keyframes doze { 50% { transform: rotate(5deg) translateY(.6px); } }
+.llama.hello .body { animation: hop .55s var(--spring) infinite; }
+.llama.hello .ear.l { animation: wl .28s ease-in-out infinite; } .llama.hello .ear.r { animation: wr .28s ease-in-out infinite; }
+@keyframes hop { 50% { transform: translateY(-2.5px); } } @keyframes wl { 50% { transform: rotate(-18deg); } } @keyframes wr { 50% { transform: rotate(18deg); } }
+.zzz { position: absolute; left: calc(50% + 14px); bottom: 8px; }
+.zzz i { position: absolute; font: 700 9px system-ui; font-style: normal; color: #c7c7cc; opacity: 0; animation: zz 3s ease-in-out infinite; }
+.zzz i:nth-child(2) { animation-delay: 1s; font-size: 7.5px; } .zzz i:nth-child(3) { animation-delay: 2s; font-size: 6px; }
+@keyframes zz { 0% { opacity: 0; transform: translate(0,0) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(12px,-16px) scale(1.15); } }
+
+/* ── Página ── */
+header.hero { padding-block: 150px 70px; display: grid; gap: 26px; justify-items: start; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand img { width: 54px; height: 54px; border-radius: 14px; box-shadow: 0 10px 30px -10px rgba(255, 106, 43, .5); }
+.brand span { font: 700 22px var(--display); letter-spacing: -.02em; }
+.hero h1 { font-size: clamp(44px, 8vw, 92px); line-height: .98; max-width: 12ch; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { font-size: clamp(18px, 2vw, 21px); color: var(--soft); max-width: 52ch; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 9px; height: 50px; padding: 0 24px; border-radius: 999px; font: 650 16px var(--body); text-decoration: none; transition: transform .2s var(--spring); }
+.btn:active { transform: scale(.97); }
+.btn.main { background: var(--ink); color: var(--bg); }
+.btn.alt { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--rule); }
+.btn.alt:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.note { font-size: 14px; color: var(--faint); }
+
+nav.toc { border-top: 1px solid var(--rule); }
+nav.toc .wrap { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; padding-block: 14px; font-size: 14.5px; font-weight: 600; color: var(--faint); }
+nav.toc .wrap::-webkit-scrollbar { display: none; }
+nav.toc a { text-decoration: none; white-space: nowrap; transition: color .2s; }
+nav.toc a:hover, nav.toc a.on { color: var(--ink); }
+nav.toc .wrap { padding-block: 18px; flex-wrap: wrap; row-gap: 8px; }
+
+section { padding-block: 84px; border-top: 1px solid var(--rule); scroll-margin-top: 200px; }
+.sec-head { display: grid; gap: 14px; max-width: 640px; margin-bottom: 44px; }
+.sec-head p { font-size: 19px; color: var(--soft); }
+.topic { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 8px 48px; padding-block: 26px; }
+.topic + .topic { border-top: 1px solid var(--rule); }
+.topic h3 { padding-top: 2px; }
+.topic .body { display: grid; gap: 12px; max-width: 62ch; color: var(--soft); }
+.topic .body strong { color: var(--ink); font-weight: 650; }
+.topic .see { font-size: 14px; font-weight: 600; color: var(--accent); cursor: pointer; background: none; border: 0; padding: 0; justify-self: start; font-family: inherit; }
+.topic .see:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) { .topic { grid-template-columns: 1fr; gap: 10px; } }
+
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 34px; max-width: 720px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 52px 1fr; gap: 4px 18px; }
+ol.steps li::before { content: counter(s); grid-row: span 2; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 17px var(--display); color: var(--accent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent); }
+ol.steps h3 { padding-top: 6px; }
+ol.steps p { color: var(--soft); }
+
+.faq { display: grid; gap: 0; max-width: 760px; }
+.faq details { border-top: 1px solid var(--rule); padding-block: 18px; }
+.faq details:last-child { border-bottom: 1px solid var(--rule); }
+.faq summary { cursor: pointer; font-weight: 650; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 20px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--faint); font-weight: 500; transition: transform .25s var(--spring); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { color: var(--soft); margin-top: 10px; max-width: 64ch; }
+
+footer { padding-block: 60px 80px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; color: var(--faint); font-size: 15px; }
+footer b { color: var(--ink); font-weight: 650; }
+
+@media (max-width: 640px) { header.hero { padding-block: 120px 50px; } section { padding-block: 64px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<div class="dock" aria-hidden="true"><div class="stage" id="stage"><div class="notch" id="notch"><span class="ear l"></span><span class="ear r"></span><div class="clip" id="view"></div></div></div></div>
+
+<header class="hero wrap">
+  <div class="brand"><img src="/icons/icon-192.png" alt=""><span>IDY</span></div>
+  <h1>Lo que miras de reojo, <em>arriba</em> de tu pantalla.</h1>
+  <p>IDY es un notch para Windows que muestra tu música, la letra, tus recordatorios, notas y tareas, y se hace a un lado cuando no lo necesitas. Tiene una web para el iPhone y se comparte con tus amigos.</p>
+  <div class="ctas">
+    <a class="btn main" href="https://github.com/Applexby/idy-notch/releases/latest" target="_blank" rel="noopener">Descargar para Windows</a>
+    <a class="btn alt" href="https://web-mauve-five-n7g1wnmllz.vercel.app" target="_blank" rel="noopener">Abrir la web</a>
+  </div>
+  <p class="note">Windows 10 y 11 · gratis · se actualiza solo</p>
+</header>
+
+<nav class="toc" aria-label="Contenido"><div class="wrap">
+  <a href="#empezar">Empezar</a><a href="#notch">El notch</a><a href="#musica">Música</a><a href="#estante">Estante</a>
+  <a href="#recordatorios">Recordatorios</a><a href="#tareas">Tareas y notas</a><a href="#llama">La llama</a>
+  <a href="#iphone">iPhone</a><a href="#amigos">Amigos</a><a href="#ajustes">Ajustes</a><a href="#dudas">Dudas</a>
+</div></nav>
+
+<main class="wrap">
+
+  <section id="empezar" data-states="resting">
+    <div class="sec-head"><h2>Empezar</h2><p>Son tres pasos. Después, el notch se queda arriba al centro de tu pantalla y su ícono junto al reloj de Windows.</p></div>
+    <ol class="steps">
+      <li><h3>Instala IDY en Windows</h3><p>Descarga el instalador y ábrelo. Como el programa no está firmado por una empresa, Windows puede avisarte: elige <strong>Más información</strong> y luego <strong>Ejecutar de todos modos</strong>.</p></li>
+      <li><h3>Crea tu cuenta</h3><p>Haz clic en el ícono de IDY junto al reloj para abrir los Ajustes y entra en <strong>Cuenta</strong>. Solo necesitas un usuario, una contraseña y el código de invitación que te pase Applexby. No pide correo.</p></li>
+      <li><h3>Ponlo también en tu iPhone</h3><p>Abre la web en Safari, toca <strong>Compartir</strong> y luego <strong>Añadir a pantalla de inicio</strong>. Entra con la misma cuenta y activa las notificaciones en Ajustes. Todo lo que hagas en un lado aparece en el otro al instante.</p></li>
+    </ol>
+  </section>
+
+  <section id="notch" data-states="resting,sliver,headphones,charging">
+    <div class="sec-head"><h2>El notch</h2><p>Pasa el mouse por encima y se abre. Aléjate y se cierra. No hay ventanas que acomodar.</p></div>
+    <div class="topic"><h3>Abrir y moverse</h3><div class="body">
+      <p>Cerrado muestra la hora y, si tu PC tiene batería, si está cargando. Al abrirlo verás varias páginas: Música, Enfoque, Estante, To-do, Notas y Recordatorios.</p>
+      <p>Cambia de página con la <strong>rueda del mouse</strong>, con las flechas <kbd>←</kbd> <kbd>→</kbd> o con los puntitos de abajo. El engranaje al final abre los Ajustes.</p>
+    </div></div>
+    <div class="topic"><h3>Se hace a un lado</h3><div class="body">
+      <p>En <strong>pantalla completa</strong> (un juego, un video, una presentación) desaparece del todo.</p>
+      <p>Sobre una <strong>ventana maximizada</strong>, como el navegador, se encoge a una barrita fina para no tapar la barra de direcciones. Pasa el mouse por la barrita y vuelve a crecer.</p>
+      <button class="see" data-show="sliver">Ver la barrita</button>
+    </div></div>
+    <div class="topic"><h3>Avisos breves</h3><div class="body">
+      <p>Cuando conectas tus audífonos Bluetooth o el cargador, el notch lo muestra un par de segundos y vuelve a lo suyo.</p>
+      <button class="see" data-show="headphones">Ver audífonos</button>
+    </div></div>
+  </section>
+
+  <section id="musica" data-states="music-closed,music-open,lyrics-closed,lyrics-open">
+    <div class="sec-head"><h2>Música y letra</h2><p>Funciona con Spotify, Apple Music, YouTube en el navegador y cualquier reproductor que use los controles de Windows.</p></div>
+    <div class="topic"><h3>Mientras suena</h3><div class="body">
+      <p>El notch cerrado muestra la carátula, la hora y un ecualizador que se mueve con la canción.</p>
+      <p>Ábrelo para pausar o saltar. <strong>Arrastra la barra</strong> para adelantar o retroceder, y pasa el mouse por el <strong>altavoz</strong> para subir o bajar el volumen; también funciona con la rueda.</p>
+      <button class="see" data-show="music-open">Ver la música abierta</button>
+    </div></div>
+    <div class="topic"><h3>La letra</h3><div class="body">
+      <p>Toca el botón de letra y el notch se divide en dos: el reproductor a la izquierda y la letra a la derecha, línea por línea mientras se canta. Haz clic en una línea para saltar ahí.</p>
+      <p>El fondo toma el <strong>color de la portada</strong> de cada canción. Y mientras la letra esté activada, la línea actual se queda arriba incluso sobre el navegador u otras ventanas. Vuelve a tocar el botón para quitarla.</p>
+      <button class="see" data-show="lyrics-open">Ver la letra</button>
+    </div></div>
+  </section>
+
+  <section id="estante" data-states="shelf">
+    <div class="sec-head"><h2>Estante</h2><p>Un lugar para tener a mano lo que vas a usar en un rato.</p></div>
+    <div class="topic"><h3>Guardar</h3><div class="body">
+      <p><strong>Arrastra</strong> archivos, carpetas o un texto del navegador hasta el notch. También puedes copiar archivos en el Explorador con <kbd>Ctrl</kbd> <kbd>C</kbd>, abrir el Estante y pegarlos con <kbd>Ctrl</kbd> <kbd>V</kbd>. Los textos se convierten en tarjetas.</p>
+      <p>El Estante solo recuerda dónde está cada archivo: nunca lo copia ni lo mueve.</p>
+    </div></div>
+    <div class="topic"><h3>Usar</h3><div class="body">
+      <p>Haz clic en un archivo para abrirlo, o en una tarjeta de texto para copiarla. Arrástralos hacia un chat, un correo o una carpeta. Con <kbd>Ctrl</kbd> o <kbd>Shift</kbd> seleccionas varios, y con el clic derecho quitas uno.</p>
+    </div></div>
+  </section>
+
+  <section id="recordatorios" data-states="reminder,alarm">
+    <div class="sec-head"><h2>Recordatorios y alarmas</h2><p>Lo que programes suena en el PC y te llega al iPhone, para ti o para todo tu grupo.</p></div>
+    <div class="topic"><h3>Crear uno</h3><div class="body">
+      <p>Escribe qué quieres recordar y elige cuándo: en 10 minutos, 30, una hora o mañana a las 9. Con <strong>Elegir hora</strong> marcas el día y la hora exacta, minuto a minuto: gira la rueda, mantén pulsadas las flechas o escribe los números directamente.</p>
+      <p>Puede repetirse una vez, cada día, de lunes a viernes o cada semana.</p>
+    </div></div>
+    <div class="topic"><h3>Alarma o aviso</h3><div class="body">
+      <p>Como <strong>alarma</strong>, el notch se abre y suena hasta que la detienes o la pospones unos minutos. Como <strong>aviso</strong>, suena una campanita y listo.</p>
+      <p>En el iPhone llega como notificación normal, con un solo sonido. Si usas modo Silencio o Concentración, permite IDY para no perderte nada.</p>
+      <button class="see" data-show="alarm">Ver una alarma</button>
+    </div></div>
+  </section>
+
+  <section id="tareas" data-states="todo,focus">
+    <div class="sec-head"><h2>Tareas, notas y enfoque</h2><p>Lo pequeño del día, sin abrir otra app.</p></div>
+    <div class="topic"><h3>To-do</h3><div class="body">
+      <p>Añade una tarea desde el notch y márcala al terminar. Si le pones hora y duración (en la web), el notch te avisa cuando empieza y cuando se acaba el tiempo. Pasa el mouse por una tarea para borrarla, o borra todas las hechas de una vez.</p>
+    </div></div>
+    <div class="topic"><h3>Notas</h3><div class="body">
+      <p>Escribe una idea y pulsa <kbd>Enter</kbd> para guardarla (<kbd>Shift</kbd> <kbd>Enter</kbd> hace un salto de línea). Haz clic en una nota para abrirla en grande, editarla, fijarla o borrarla. En la web tienes colores, listas con casillas y archivo, como en Keep.</p>
+    </div></div>
+    <div class="topic"><h3>Enfoque</h3><div class="body">
+      <p>Un temporizador Pomodoro: 25 minutos de trabajo y pausas cortas, con una campanita suave al terminar. Mientras corre, el tiempo se ve en el notch cerrado.</p>
+      <button class="see" data-show="focus">Ver el enfoque</button>
+    </div></div>
+  </section>
+
+  <section id="llama" data-states="llama-awake,llama-sleep,llama-hello">
+    <div class="sec-head"><h2>La llama</h2><p>IDY tiene una mascota que vive en el notch.</p></div>
+    <div class="topic"><h3>Cuándo aparece</h3><div class="body">
+      <p>Si dejas el mouse y el teclado quietos unos segundos y no hay música ni video sonando, la llama sale y mira a los lados. Si sigues lejos, se queda dormida. Cuando vuelves, te saluda con las orejas.</p>
+      <p>Si prefieres la hora, apágala en Ajustes, en General.</p>
+      <button class="see" data-show="llama-hello">Ver el saludo</button>
+    </div></div>
+  </section>
+
+  <section id="iphone" data-states="resting">
+    <div class="sec-head"><h2>En el iPhone y en el navegador</h2><p>La web es la misma app con todo: recordatorios, notas tipo Keep, tareas y grupos. Funciona sin App Store.</p></div>
+    <div class="topic"><h3>Instalarla</h3><div class="body">
+      <p>En Safari, abre la web, toca <strong>Compartir</strong> y luego <strong>Añadir a pantalla de inicio</strong>. Ábrela desde el ícono de la llama y, en Ajustes, activa <strong>Recibir recordatorios</strong>. Puedes enviarte una notificación de prueba.</p>
+      <p>iOS solo deja que lleguen notificaciones a las web apps instaladas así; desde la pestaña normal de Safari no funcionan.</p>
+    </div></div>
+    <div class="topic"><h3>Desde el PC</h3><div class="body">
+      <p>En los Ajustes del notch, en Cuenta, el botón <strong>Abrir</strong> te lleva a la web en una ventana propia, y <strong>Copiar enlace</strong> te sirve para pasársela a alguien.</p>
+    </div></div>
+  </section>
+
+  <section id="amigos" data-states="alarm">
+    <div class="sec-head"><h2>Con amigos</h2><p>Un recordatorio puesto en el grupo le suena a todos.</p></div>
+    <div class="topic"><h3>Grupos</h3><div class="body">
+      <p>En la web, en Ajustes, crea un grupo y comparte su código. Tus amigos lo escriben en <strong>Unirme</strong> y listo. Al crear un recordatorio, una nota o una tarea, elige el grupo en <strong>Compartir con</strong>: todos lo ven y lo reciben. Lo demás sigue siendo solo tuyo.</p>
+      <p>Puedes salir de un grupo cuando quieras. Si el grupo es tuyo, puedes borrarlo; se borra también lo que estaba compartido ahí.</p>
+    </div></div>
+  </section>
+
+  <section id="ajustes" data-states="update">
+    <div class="sec-head"><h2>Ajustes y actualizaciones</h2><p>Haz clic en el ícono de IDY junto al reloj o en el engranaje del notch.</p></div>
+    <div class="topic"><h3>Lo que puedes cambiar</h3><div class="body">
+      <p>El tamaño del notch, en qué pantalla aparece, si se abre al pasar el mouse o con un clic, qué páginas ves y en qué orden, la duración del enfoque, los avisos de carga y audífonos, y si IDY se abre con Windows.</p>
+    </div></div>
+    <div class="topic"><h3>Actualizar</h3><div class="body">
+      <p>Cuando hay una versión nueva, el notch te avisa y aparece un punto azul en el engranaje. En Ajustes, en <strong>Acerca de</strong>, toca <strong>Actualizar ahora</strong>: se descarga, se instala encima y IDY se reinicia solo. No hace falta desinstalar nada.</p>
+    </div></div>
+  </section>
+
+  <section id="dudas" data-states="resting">
+    <div class="sec-head"><h2>Dudas</h2></div>
+    <div class="faq">
+      <details><summary>Windows dice que el programa no es seguro</summary><p>Sale porque IDY no está firmado por una empresa, no porque tenga algo malo. Elige "Más información" y luego "Ejecutar de todos modos". Solo pasa al instalarlo.</p></details>
+      <details><summary>No veo la hora, solo una barrita</summary><p>Si hay una ventana maximizada al frente, el notch se encoge a propósito. Si te pasa con el escritorio a la vista, revisa que "Notch mínimo" esté apagado en Ajustes, en General. En Acerca de hay un diagnóstico que muestra qué ventana está detectando.</p></details>
+      <details><summary>No me llegan los recordatorios al iPhone</summary><p>La web tiene que estar instalada en la pantalla de inicio y las notificaciones activadas desde sus Ajustes. Revisa también que el modo Concentración permita IDY.</p></details>
+      <details><summary>¿Mis archivos se suben a algún lado?</summary><p>No. El Estante solo guarda dónde está cada archivo en tu PC. Lo que se sincroniza son tus recordatorios, notas, tareas y grupos.</p></details>
+      <details><summary>No encuentro la letra de una canción</summary><p>Las letras vienen de LRCLIB, una base comunitaria. Si una canción no tiene letra sincronizada ahí, el botón de letra aparece apagado.</p></details>
+    </div>
+  </section>
+
+</main>
+
+<div class="wrap"><footer><span><b>IDY</b> · un notch vivo para Windows</span><span>Hecho por <b>Applexby</b></span></footer></div>
+
+<script>
+(() => {
+  const notch = document.getElementById("notch");
+  const view = document.getElementById("view");
+  const stage = document.getElementById("stage");
+  const time = () => new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const date = () => new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  const bars = '<span class="bars"><b></b><b></b><b></b><b></b></span>';
+  const dots = (n) => `<div class="dots">${[0,1,2,3,4,5].map(i => `<i class="${i === n ? "on" : ""}"></i>`).join("")}</div>`;
+  const llama = (mood) => `<div class="llama ${mood}"><svg viewBox="0 0 44 34">
+    <g class="body">
+      <g class="ear l"><path class="b" d="M14.2 2.2c-2 2.4-2.2 6.6-.9 9.4h2.6c.9-3 .6-6.9-1.7-9.4Z"/><path class="in" d="M14.3 4.6c-1 1.6-1.1 4.2-.4 6h1.2c.5-1.9.3-4.3-.8-6Z"/></g>
+      <g class="ear r"><path class="b" d="M29.8 2.2c2 2.4 2.2 6.6.9 9.4h-2.6c-.9-3-.6-6.9 1.7-9.4Z"/><path class="in" d="M29.7 4.6c1 1.6 1.1 4.2.4 6h-1.2c-.5-1.9-.3-4.3.8-6Z"/></g>
+      <rect class="b" x="15.6" y="25" width="12.8" height="12" rx="5"/><ellipse class="b" cx="22" cy="21" rx="10.6" ry="9.6"/>
+      <circle class="b" cx="15.6" cy="13.4" r="3.8"/><circle class="b" cx="19.2" cy="11" r="4.3"/><circle class="b" cx="24.6" cy="11" r="4.3"/><circle class="b" cx="28.4" cy="13.4" r="3.8"/><circle class="b" cx="22" cy="13.6" r="3.6"/>
+      <ellipse class="mz" cx="22" cy="25.4" rx="5.4" ry="3.5"/><circle class="ns" cx="20.6" cy="24.8" r=".55"/><circle class="ns" cx="23.4" cy="24.8" r=".55"/>
+      <g class="eyes">${mood === "awake"
+        ? '<rect class="e" x="17.1" y="17.6" width="2.4" height="4.6" rx="1.2"/><rect class="e" x="24.5" y="17.6" width="2.4" height="4.6" rx="1.2"/>'
+        : mood === "hello" ? '<path class="hp" d="M17 21.4q1.3-2.2 2.6 0"/><path class="hp" d="M24.4 21.4q1.3-2.2 2.6 0"/>'
+        : '<path class="hp" d="M17 20.6q1.3 1.4 2.6 0"/><path class="hp" d="M24.4 20.6q1.3 1.4 2.6 0"/>'}</g>
+    </g></svg>${mood === "sleep" ? '<span class="zzz"><i>z</i><i>z</i><i>z</i></span>' : ""}</div>`;
+
+  const S = {
+    "resting":       { w: 196, h: 30, r: 14, html: () => `<div class="v"><span class="bolt">⚡</span><span class="t mid">${time()}</span><span style="width:18px"></span></div>` },
+    "sliver":        { w: 110, h: 6, r: 4, cls: "sliver", html: () => "" },
+    "headphones":    { w: 330, h: 36, r: 18, html: () => `<div class="v hud"><span style="color:#64d2ff">🎧</span><b>AirBuds Pro</b><span style="color:#64d2ff;font-weight:700">Conectado</span></div>` },
+    "charging":      { w: 330, h: 36, r: 18, html: () => `<div class="v hud"><span style="color:#30d158">⚡</span><b>Cargando</b><span style="color:#30d158;font-weight:700">72%</span><span class="meter"><i></i></span></div>` },
+    "music-closed":  { w: 236, h: 30, r: 14, html: () => `<div class="v"><span class="art"></span><span class="t mid">${time()}</span>${bars}</div>` },
+    "lyrics-closed": { w: 340, h: 30, r: 14, html: () => `<div class="v"><span class="art"></span><span class="lyr">y tú bailando, bailando</span>${bars}</div>` },
+    "music-open":    { w: 500, h: 176, r: 28, html: () => `<div class="v open"><div class="top-line"><span style="color:#30d158">⚡</span> ${date()} <b>${time()}</b></div>
+        <div class="row"><span class="art big"></span><div class="ttl"><strong>El Fin del Mundo</strong><small>La La Love You - Bonus</small></div></div>
+        <div class="seek"><span>01:01</span><span class="rail"><i></i></span><span>-02:07</span></div>
+        <div class="ctl"><span>❝</span><span class="c"><span>⏪</span><span style="font-size:19px">⏸</span><span>⏩</span></span><span class="r"><span class="vol"><i></i></span>🔊</span></div></div>${dots(0)}` },
+    "lyrics-open":   { w: 500, h: 176, r: 28, tint: "#a0582c", html: () => `<div class="split"><div style="display:grid;gap:9px;align-content:center">
+        <div class="row"><span class="art big" style="width:52px;height:52px"></span><div class="ttl"><strong>El Fin del Mundo</strong><small>La La Love You</small></div></div>
+        <div class="seek"><span>01:38</span><span class="rail"><i style="width:52%"></i></span><span>-01:30</span></div>
+        <div style="display:flex;gap:16px;font-size:14px"><span>❝</span><span>⏪</span><span>⏸</span><span>⏩</span></div></div>
+        <div class="lyrics"><span>y lo que pasa eres tú</span><span class="on">Y tú bailando, bailando</span><span>y yo llorando por ti</span></div></div>${dots(0)}` },
+    "shelf":         { w: 500, h: 176, r: 28, html: () => `<div class="v open"><strong style="font-size:13px">Estante <span style="color:#636366">5</span></strong><div class="tiles">
+        <span class="tile"><span style="background:#3a1d1d;color:#ff453a">PDF</span>Contrato.pdf</span><span class="tile"><span style="background:#3a2b10;color:#ffd60a">📁</span>Brief</span>
+        <span class="tile"><span style="background:#3a1626;color:#ff375f">MP4</span>reel_v3.mp4</span><span class="tile"><span style="background:#123018;color:#30d158">XLSX</span>cotización</span>
+        <span class="tile"><span style="background:#f5f5f7;color:#1c1c1e;font-size:6px;padding:5px;text-align:left;line-height:1.2">Copy del reel: tu moto, tu libertad</span>Texto</span></div></div>${dots(2)}` },
+    "reminder":      { w: 500, h: 176, r: 28, html: () => `<div class="v open"><div style="background:#1d1d20;border-radius:10px;padding:7px 11px;font-size:13px">Pagar la luz</div>
+        <div class="picker"><div style="text-align:center;font-size:12px;line-height:1.2"><b>Mañana</b><br><span style="color:#a1a1a6">5 nov</span></div>
+        <div><span class="pk-num">08</span><span class="pk-num" style="color:#636366"> : </span><span class="pk-num">37</span></div>
+        <div><span class="chip on">1 vez</span><span class="chip">Diario</span><span class="chip">L–V</span><div class="go">Programar · mañana</div></div></div></div>${dots(5)}` },
+    "alarm":         { w: 410, h: 112, r: 28, html: () => `<div class="v alarm"><span class="ring">⏰</span><div><small>Recordatorio · Los panas</small><strong>Fútbol de los jueves</strong><span class="btn-n">💤 10 min</span><span class="btn-n w">Detener</span></div></div>` },
+    "todo":          { w: 500, h: 176, r: 28, html: () => `<div class="v open"><strong style="font-size:13px">To-do <span style="color:#636366">1/4</span></strong><div class="todo-list">
+        <span><i style="border-color:#0a84ff"></i>Editar video</span><span><i style="border-color:#ff375f"></i>Responder a Dina</span>
+        <span><i style="border-color:#30d158"></i>Reservar cancha</span><span class="done"><i></i>Publicar parrilla</span></div></div>${dots(3)}` },
+    "focus":         { w: 230, h: 30, r: 14, html: () => `<div class="v"><svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="#333" stroke-width="2.6" fill="none"/><circle cx="10" cy="10" r="8" stroke="#ff9f0a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-dasharray="50.3" stroke-dashoffset="18" transform="rotate(-90 10 10)"/></svg><span class="t" style="color:#ff9f0a">18:42</span></div>` },
+    "llama-awake":   { w: 196, h: 30, r: 14, html: () => llama("awake") },
+    "llama-sleep":   { w: 196, h: 30, r: 14, html: () => llama("sleep") },
+    "llama-hello":   { w: 196, h: 30, r: 14, html: () => llama("hello") },
+    "update":        { w: 340, h: 36, r: 18, html: () => `<div class="v hud"><span style="color:#64d2ff">⬇</span><b>IDY 1.7 disponible</b><span style="color:#64d2ff;font-weight:700;font-size:12px">Actualizar</span></div>` },
+  };
+
+  let current = "";
+  function show(id) {
+    if (id === current || !S[id]) return;
+    current = id;
+    const s = S[id];
+    notch.style.setProperty("--w", s.w + "px");
+    notch.style.setProperty("--h", s.h + "px");
+    notch.style.setProperty("--r", s.r + "px");
+    notch.classList.toggle("sliver", s.cls === "sliver");
+    notch.classList.toggle("tint", !!s.tint);
+    if (s.tint) notch.style.setProperty("--tint", s.tint);
+    view.innerHTML = s.html();
+  }
+
+  // Ajusta el tamaño en pantallas angostas
+  const fit = () => stage.style.setProperty("--k", Math.min(1, (window.innerWidth - 40) / 520).toFixed(3));
+  addEventListener("resize", fit); fit();
+
+  // Al bajar, cada sección pone su estado; si tiene varios, los va rotando
+  const sections = [...document.querySelectorAll("section[data-states]")];
+  const links = [...document.querySelectorAll("nav.toc a")];
+  let rot = null, pinned = null, active = null;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function activate(sec) {
+    if (sec === active) return;
+    active = sec;
+    clearInterval(rot); pinned = null;
+    const list = sec.dataset.states.split(",");
+    let i = 0; show(list[0]);
+    if (list.length > 1 && !reduce) rot = setInterval(() => { if (!pinned) show(list[(i = (i + 1) % list.length)]); }, 2800);
+    links.forEach((a) => a.classList.toggle("on", a.getAttribute("href") === "#" + sec.id));
+  }
+  const io = new IntersectionObserver((entries) => {
+    const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (vis) activate(vis.target);
+  }, { rootMargin: "-40% 0px -45% 0px", threshold: [0, .25, .5] });
+  sections.forEach((s) => io.observe(s));
+
+  // "Ver …" fija un estado por un momento
+  document.querySelectorAll(".see").forEach((b) => b.addEventListener("click", () => {
+    pinned = b.dataset.show; show(pinned);
+    setTimeout(() => { pinned = null; }, 6000);
+  }));
+
+  // Antes de llegar a las secciones: hora y, al rato, la llama
+  show("resting");
+  if (!reduce) setTimeout(() => { if (!active) show("llama-awake"); }, 3500);
+  setInterval(() => { if (current === "resting" || current === "music-closed") view.querySelector(".t") && (view.querySelector(".t").textContent = time()); }, 15000);
+})();
+</script>
+</body>
+</html>

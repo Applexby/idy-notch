@@ -1,5 +1,5 @@
 /* IDY · service worker: notificaciones push + caché básica del shell */
-const CACHE = "idy-v1";
+const CACHE = "idy-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -15,7 +15,8 @@ self.addEventListener("activate", (e) => {
 // Red primero para navegación; caché como respaldo sin conexión
 self.addEventListener("fetch", (e) => {
   const req = e.request;
-  if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  const u = new URL(req.url);
+  if (req.method !== "GET" || u.origin !== location.origin || u.pathname.startsWith("/guia")) return;
   e.respondWith(
     fetch(req).then((res) => {
       if (res.ok && (req.mode === "navigate" || req.url.includes("/assets/"))) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Repeat } from "@shared/types";
 import { COLORS, REPEAT_LABEL } from "@shared/types";
 import { fmtWhen, relTime } from "@shared/time";
@@ -30,7 +30,7 @@ export default function RemindersPage() {
   const soon = new Date(Date.now() + 60 * 60e3);
   const [day, setDay] = useState(0);
   const [h, setH] = useState(soon.getHours());
-  const [m, setM] = useState(Math.ceil(soon.getMinutes() / 5) * 5 % 60);
+  const [m, setM] = useState(soon.getMinutes());
   const [rep, setRep] = useState<Repeat>("none");
 
   const upcoming = reminders.filter((r) => !r.done && r.next_fire_at).slice(0, 6);
@@ -72,9 +72,9 @@ export default function RemindersPage() {
               <button className="nb icon tiny ghost" disabled={day >= 30} onClick={() => setDay(day + 1)} aria-label="Día siguiente"><Ico n="right" s={13} /></button>
             </div>
             <div className="pk-time">
-              <Spin value={h} onWheel={wheel(setH, 24, 1)} up={() => setH((h + 1) % 24)} down={() => setH((h + 23) % 24)} />
+              <Spin value={h} max={23} set={setH} onWheel={wheel(setH, 24, 1)} label="Hora" />
               <span className="pk-colon">:</span>
-              <Spin value={m} onWheel={wheel(setM, 60, 5)} up={() => setM((m + 5) % 60)} down={() => setM((m + 55) % 60)} />
+              <Spin value={m} max={59} set={setM} onWheel={wheel(setM, 60, 1)} label="Minutos" />
             </div>
             <div className="pk-side">
               <div className="chips tight">
@@ -105,12 +105,33 @@ export default function RemindersPage() {
   );
 }
 
-function Spin({ value, up, down, onWheel }: { value: number; up: () => void; down: () => void; onWheel: (e: React.WheelEvent) => void }) {
+/** Número de 2 dígitos: rueda, flechas (mantener pulsado repite) o escribir directo */
+function Spin({ value, max, set, onWheel, label }: {
+  value: number; max: number; set: (f: (v: number) => number) => void; onWheel: (e: React.WheelEvent) => void; label: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const rep = useRef<number>();
+  const bump = (d: number) => set((v) => (v + d + max + 1) % (max + 1));
+  const hold = (d: number) => {
+    bump(d);
+    let delay = 380;
+    const go = () => { bump(d); delay = Math.max(45, delay * 0.8); rep.current = window.setTimeout(go, delay); };
+    rep.current = window.setTimeout(go, delay);
+  };
+  const stop = () => clearTimeout(rep.current);
+  const commit = () => {
+    if (draft !== null && draft !== "") set(() => Math.min(max, Math.max(0, parseInt(draft, 10) || 0)));
+    setDraft(null);
+  };
   return (
     <div className="spin" onWheel={onWheel}>
-      <button onClick={up} aria-label="Subir"><Ico n="up" s={14} /></button>
-      <b key={value}>{pad(value)}</b>
-      <button onClick={down} aria-label="Bajar"><Ico n="down" s={14} /></button>
+      <button onPointerDown={() => hold(1)} onPointerUp={stop} onPointerLeave={stop} aria-label={`Subir ${label}`}><Ico n="up" s={14} /></button>
+      <input className="spin-in" inputMode="numeric" aria-label={label} value={draft ?? pad(value)} maxLength={2}
+        onFocus={(e) => { setDraft(""); e.currentTarget.select(); }}
+        onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 2); setDraft(v); if (v.length === 2) { set(() => Math.min(max, parseInt(v, 10))); } }}
+        onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "ArrowUp") { e.preventDefault(); bump(1); } if (e.key === "ArrowDown") { e.preventDefault(); bump(-1); } }} />
+      <button onPointerDown={() => hold(-1)} onPointerUp={stop} onPointerLeave={stop} aria-label={`Bajar ${label}`}><Ico n="down" s={14} /></button>
     </div>
   );
 }
