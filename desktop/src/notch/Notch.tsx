@@ -18,7 +18,7 @@ import TasksPage from "./pages/Tasks";
 import NotesPage from "./pages/Notes";
 import RemindersPage from "./pages/Reminders";
 
-interface Hud { id: number; icon: string; color: string; title: string; sub?: string; progress?: number }
+interface Hud { id: number; icon: string; color: string; title: string; sub?: string; progress?: number; kind?: "power" | "bt"; percent?: number; charging?: boolean }
 type Geo = { w: number; h: number; r: number };
 
 const G = {
@@ -27,7 +27,7 @@ const G = {
   music: { w: 236, h: 32, r: 15 },
   focus: { w: 272, h: 32, r: 15 },
   mascot: { w: 214, h: 32, r: 15 },
-  hud: { w: 380, h: 40, r: 20 },
+  hud: { w: 340, h: 50, r: 24 },
   alarm: { w: 470, h: 132, r: 32 },
   open: { w: 590, h: 210, r: 32 },
 } satisfies Record<string, Geo>;
@@ -77,10 +77,11 @@ export default function Notch() {
     return () => clearTimeout(t);
   }, [huds]);
   useSystemHuds((kind, d) => {
-    if (kind === "bt" && s.hudHeadphones && "name" in d) pushHud({ icon: "headphones", color: "#64d2ff", title: d.name, sub: d.connected ? "Conectado" : "Desconectado" });
+    if (kind === "bt" && s.hudHeadphones && "name" in d)
+      pushHud({ kind: "bt", icon: "headphones", color: d.connected ? "#0a84ff" : "#8e8e93", title: d.name, sub: d.connected ? "Conectado" : "Desconectado" });
     if ((kind === "charging" || kind === "battery") && s.hudCharging && "percent" in d)
-      pushHud({ icon: kind === "charging" ? "bolt" : "battery", color: kind === "charging" ? "#30d158" : "#ffd60a",
-        title: kind === "charging" ? "Cargando" : "Con batería", sub: `${d.percent}%`, progress: d.percent / 100 });
+      pushHud({ kind: "power", icon: "bolt", color: battColor(d.percent, kind === "charging"), percent: d.percent, charging: kind === "charging",
+        title: kind === "charging" ? "Cargando" : "Con batería", sub: kind === "charging" ? "Cargador conectado" : "Cargador desconectado" });
   });
   useEffect(() => onFocusDone((mode, next) => pushHud({
     icon: "timer", color: "#ff9f0a", title: mode === "focus" ? "¡Buen trabajo!" : "Se acabó el descanso", sub: `Sigue: ${FOCUS_LABEL[next]}`,
@@ -282,6 +283,19 @@ export default function Notch() {
 
         {/* ───── HUD breve ───── */}
         {mode === "hud" && hud && (
+          hud.kind === "power" ? (
+            <div className="c-wrap hud2" key={hud.id}>
+              <BattRing pct={hud.percent ?? 0} color={hud.color} size={30} stroke={3.4} bolt={hud.charging} />
+              <span className="hud2-text"><b>{hud.title}</b><small>{hud.sub}</small></span>
+              <span className="hud2-big">{hud.percent}%</span>
+            </div>
+          ) : hud.kind === "bt" ? (
+            <div className="c-wrap hud2" key={hud.id}>
+              <span className="bt-ring" style={{ color: hud.color }}><Ico n="bluetooth" s={14} w={2.2} /></span>
+              <span className="hud2-text"><b>{hud.title}</b><small>{hud.sub}</small></span>
+              <span className="bt-btn" style={{ color: hud.color, boxShadow: `0 0 0 1.5px ${hud.color}, 0 0 14px ${hud.color}55` }}><Ico n="headphones" s={16} w={2} /></span>
+            </div>
+          ) :
           <div className="c-wrap hud" key={hud.id}>
             <span className="hud-ico" style={{ color: hud.color }}><Ico n={hud.icon} s={19} w={2} fill={hud.icon === "bolt"} /></span>
             <span className="hud-text"><b>{hud.title}</b>{hud.sub && <small style={{ color: hud.color }}>{hud.sub}</small>}</span>
@@ -348,12 +362,33 @@ export function Bars({ on }: { on: boolean }) {
   return <span className={`bars ${on ? "on" : ""}`}><i /><i /><i /><i /></span>;
 }
 
+export function battColor(pct: number, charging = false) {
+  if (charging) return "#30d158";
+  return pct <= 20 ? "#ff453a" : pct <= 40 ? "#ffd60a" : "#30d158";
+}
+
+/** Anillo de batería: el arco es el porcentaje; con rayo si está cargando */
+export function BattRing({ pct, color, size = 18, stroke = 2.4, bolt = false, label = false }: {
+  pct: number; color: string; size?: number; stroke?: number; bolt?: boolean; label?: boolean;
+}) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return (
+    <span className="batt-ring" style={{ width: size, height: size, color }} title={`${pct}%`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#2c2c30" strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0.02, pct / 100))} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      </svg>
+      {bolt ? <i className="br-bolt"><Ico n="bolt" s={size * 0.46} fill /></i> : label && <i className="br-num">{pct}</i>}
+    </span>
+  );
+}
+
 function PowerIcon() {
   const { power } = sysStore.use();
   if (!power?.has_battery) return <span className="c-spacer" />;
   if (power.charging) return <span className="c-charge"><Ico n="bolt" s={11} fill /></span>;
-  const c = power.percent <= 20 ? "#ff453a" : power.percent <= 40 ? "#ffd60a" : "#f5f5f7";
-  return <span className="c-batt" title={`${power.percent}%`}><i style={{ width: `${power.percent}%`, background: c }} /></span>;
+  return <BattRing pct={power.percent} color={battColor(power.percent)} size={20} stroke={2.4} label />;
 }
 
 function Ring({ p, color }: { p: number; color: string }) {

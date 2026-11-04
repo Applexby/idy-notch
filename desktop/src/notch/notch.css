@@ -408,3 +408,17 @@ button.note-card:hover { background: #18181b; transform: translateY(-1px); }
 .spin-in { width: 52px; text-align: center; background: transparent; border: 0; border-radius: 8px; font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums;
   line-height: 1.05; letter-spacing: -.02em; padding: 0; color: var(--t1); caret-color: #ff9f0a; }
 .spin-in:focus { background: #1d1d20; }
+
+/* v1.7: avisos de carga y audífonos */
+.hud2 { justify-content: flex-start; gap: 13px; padding: 0 16px 0 14px; }
+.hud2-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.hud2-text b { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud2-text small { font-size: 11.5px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud2-big { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.batt-ring { position: relative; display: inline-grid; place-items: center; flex: none; }
+.batt-ring > svg { position: absolute; inset: 0; }
+.batt-ring > svg circle:last-child { transition: stroke-dashoffset .9s var(--ease); }
+.batt-ring .br-bolt { position: relative; display: grid; place-items: center; font-style: normal; }
+.batt-ring .br-num { position: relative; font-style: normal; font-size: 7.5px; font-weight: 800; color: var(--t1); letter-spacing: -.02em; }
+.bt-ring { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 3px currentColor; }
+.bt-btn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; background: rgba(10,132,255,.12); }

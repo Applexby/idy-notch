@@ -41,6 +41,7 @@ const P: Record<string, string> = {
   "vol-hi": "M4 9h3l5-4v14l-5-4H4V9Zm12 .5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10",
   "vol-lo": "M4 9h3l5-4v14l-5-4H4V9Zm12 .5a3.5 3.5 0 0 1 0 5",
   "vol-off": "M4 9h3l5-4v14l-5-4H4V9Zm12 1 4 4m0-4-4 4",
+  bluetooth: "M7 7l10 10-5 4V3l5 4L7 17",
   snooze: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM9.5 10.5h5l-5 5h5",
 };
 
