@@ -3,7 +3,7 @@ import { on, openSettings, openWeb, setHitRect } from "../lib/native";
 import { checkUpdate, updates } from "../lib/update";
 import { getSettings, PAGE_LABEL, useSettings, type PageId } from "../lib/settings";
 import { focus, FOCUS_LABEL, onFocusDone, remaining, total } from "../lib/focus";
-import { addPaths, shelf } from "../lib/shelf";
+import { addPaths, addText, shelf } from "../lib/shelf";
 import { alarm as alarmSound, chime } from "../lib/sound";
 import { dueEvents, snoozeReminder, snoozeTask, type AlarmEvent } from "../lib/sync";
 import { currentLine } from "../lib/lyrics";
@@ -144,7 +144,15 @@ export default function Notch() {
       if (pages.includes("shelf")) setPage("shelf");
     });
     const u3 = on("open-web", () => openWeb(getSettings().webUrl));
-    return () => { [u1, u2, u3].forEach((u) => u.then((f) => f())); };
+    // Texto arrastrado desde el navegador u otra app → tarjeta de texto
+    const u4 = on<string>("shelf-text", (t) => {
+      if (shelf.get().outgoing) return;
+      shelf.set({ dragging: false });
+      addText(t);
+      setOpen(true);
+      if (pages.includes("shelf")) setPage("shelf");
+    });
+    return () => { [u1, u2, u3, u4].forEach((u) => u.then((f) => f())); };
   }, [pages.join()]);
 
   // Buscar actualizaciones al iniciar y cada 6 h

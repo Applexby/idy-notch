@@ -87,7 +87,7 @@ export default function ShelfPage() {
       {dragging || !items.length ? (
         <div className={`dropzone ${dragging ? "hot" : ""}`}>
           <Ico n="shelf" s={24} />
-          <span>{dragging ? "Suelta para guardar aquí" : "Suelta archivos aquí para tenerlos a mano"}</span>
+          <span>{dragging ? "Suelta para guardar aquí" : "Suelta archivos, carpetas o textos aquí"}</span>
           {!dragging && <small>Arrastra o pega (Ctrl+V) archivos, carpetas o textos · clic para abrir o copiar · arrástralos fuera cuando quieras</small>}
         </div>
       ) : (

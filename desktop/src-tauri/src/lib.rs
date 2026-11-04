@@ -5,6 +5,8 @@
 
 mod media;
 mod system;
+#[cfg(windows)]
+mod droptarget;
 
 use std::sync::{Arc, Mutex};
 use tauri::{
@@ -152,6 +154,56 @@ fn toggle_notch(app: &AppHandle) {
     }
 }
 
+#[cfg(windows)]
+thread_local! {
+    static DROP_TARGET: std::cell::RefCell<Option<windows::Win32::System::Ole::IDropTarget>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(windows)]
+fn notch_hwnd(app: &AppHandle) -> Option<isize> {
+    app.get_webview_window("notch").and_then(|w| w.hwnd().ok()).map(|h| h.0 as isize)
+}
+
+#[cfg(windows)]
+fn install_drop_target(app: &AppHandle) {
+    let emitter = app.clone();
+    let target = droptarget::new_target(Box::new(move |ev| {
+        let _ = match ev {
+            droptarget::DropEvent::Enter => emitter.emit("shelf-drag", true),
+            droptarget::DropEvent::Leave => emitter.emit("shelf-drag", false),
+            droptarget::DropEvent::Files(f) => emitter.emit("shelf-drop", f),
+            droptarget::DropEvent::Text(t) => emitter.emit("shelf-text", t),
+        };
+    }));
+    if let Some(h) = notch_hwnd(app) {
+        droptarget::register_all(h, &target);
+    }
+    DROP_TARGET.with(|t| *t.borrow_mut() = Some(target));
+    // WebView2 crea algunas ventanas internas tarde: vuelve a registrar unas veces al inicio
+    let a = app.clone();
+    std::thread::spawn(move || {
+        for _ in 0..6 {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            reregister_drop(&a);
+        }
+    });
+}
+
+/// Vuelve a registrar el receptor (se llama cuando el cursor entra al notch)
+#[cfg(windows)]
+pub fn reregister_drop(app: &AppHandle) {
+    let Some(h) = notch_hwnd(app) else { return };
+    let _ = app.run_on_main_thread(move || {
+        DROP_TARGET.with(|t| {
+            if let Some(target) = t.borrow().as_ref() {
+                droptarget::register_all(h, target);
+            }
+        });
+    });
+}
+#[cfg(not(windows))]
+pub fn reregister_drop(_app: &AppHandle) {}
+
 pub fn run() {
     let shared = Arc::new(Shared::default());
 
@@ -225,6 +277,10 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
+            // ── Soltar archivos/textos en el notch (receptor propio) ──
+            #[cfg(windows)]
+            install_drop_target(&handle);
 
             // ── Hilos nativos ──
             system::spawn_hover_watch(handle.clone(), shared.clone());

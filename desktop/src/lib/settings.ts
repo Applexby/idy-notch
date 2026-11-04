@@ -52,9 +52,14 @@ const KEY = "idy-settings";
 let cache: Settings = load();
 const subs = new Set<() => void>();
 
+const OLD_WEB = ["https://idy-notch.vercel.app", ""];
 function load(): Settings {
-  try { return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Settings>) }; }
-  catch { return { ...DEFAULTS }; }
+  try {
+    const s = { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Settings>) };
+    // La dirección vieja por defecto ya no existe: pásala a la web real
+    if (OLD_WEB.includes(s.webUrl.replace(/\/$/, ""))) s.webUrl = DEFAULTS.webUrl;
+    return s;
+  } catch { return { ...DEFAULTS }; }
 }
 
 export function getSettings() { return cache; }

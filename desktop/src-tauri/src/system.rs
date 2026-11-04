@@ -41,6 +41,9 @@ pub fn spawn_hover_watch(app: AppHandle, shared: Arc<Shared>) {
                     && cx >= r.x - m && cx <= r.x + r.w + m
                     && cy >= r.y - m && cy <= r.y + r.h + m;
                 if inside_prev != Some(inside) {
+                    if inside {
+                        crate::reregister_drop(&app);
+                    }
                     let _ = app.emit("hover", inside);
                     inside_prev = Some(inside);
                 }
