@@ -1,6 +1,6 @@
 [package]
 name = "idy-notch"
-version = "1.7.0"
+version = "1.7.1"
 description = "IDY · un notch vivo para Windows"
 edition = "2021"
 
