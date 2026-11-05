@@ -92,3 +92,7 @@ input[type=range] { accent-color: var(--green); width: 160px; }
 .dl-bar i { position: absolute; inset: 0 auto 0 0; background: #30d15855; transition: width .2s; }
 .dl-bar span { position: relative; display: block; text-align: center; font-size: 11.5px; line-height: 22px; color: var(--t2); }
 .note.err { color: var(--red, #ff453a); }
+.sel { max-width: 230px; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--card-2); color: var(--t1); font: inherit; font-size: 12.5px; border: 0; outline: none; }
+.mic-meter { width: 120px; height: 8px; border-radius: 5px; background: var(--card-2); overflow: hidden; }
+.mic-meter i { display: block; height: 100%; background: #30d158; transition: width .08s linear; }
+.note.ok { color: var(--t1); }

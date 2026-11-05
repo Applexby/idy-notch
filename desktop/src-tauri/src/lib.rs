@@ -247,6 +247,18 @@ fn voice_stop(app: AppHandle) {
 }
 
 #[tauri::command]
+async fn voice_mics() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(voice::list_mics).await.unwrap_or_default()
+}
+
+#[tauri::command]
+async fn voice_test(app: AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || voice::test(&app, 4))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn voice_cancel(app: AppHandle) {
     voice::cancel(&app)
 }
@@ -311,7 +323,9 @@ pub fn run() {
             voice_uninstall,
             voice_start,
             voice_stop,
-            voice_cancel
+            voice_cancel,
+            voice_mics,
+            voice_test
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

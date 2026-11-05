@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usernameToEmail } from "@shared/config";
-import { autostart, invoke, IS_TAURI, on, openUrl, openWeb, quitApp, voiceInstall, voiceStatus, voiceUninstall, type VoiceProgress, type VoiceStatus } from "../lib/native";
+import { autostart, invoke, IS_TAURI, on, openUrl, openWeb, quitApp, voiceInstall, voiceMics, voiceStatus, voiceTest, voiceUninstall, type VoiceProgress, type VoiceStatus } from "../lib/native";
 import { checkUpdate, installUpdate, updates } from "../lib/update";
 import { PAGE_LABEL, setSettings, useSettings, type PageId, type Settings } from "../lib/settings";
 import { supabase } from "../lib/supa";
@@ -304,7 +304,20 @@ function Voice() {
   const [prog, setProg] = useState<VoiceProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  useEffect(() => { voiceStatus().then(setSt); }, []);
+  const [mics, setMics] = useState<string[]>([]);
+  const [test, setTest] = useState<{ phase: "idle" | "rec" | "proc"; text?: string; error?: string }>({ phase: "idle" });
+  const [lvl, setLvl] = useState(0);
+  useEffect(() => { voiceStatus().then(setSt); voiceMics().then(setMics); }, []);
+  useEffect(() => {
+    const u1 = on<number>("voice-test-level", setLvl);
+    const u2 = on<string>("voice-test-phase", () => setTest((t) => ({ ...t, phase: "proc" })));
+    return () => { [u1, u2].forEach((u) => u.then((f) => f())); };
+  }, []);
+  const runTest = async () => {
+    setTest({ phase: "rec" });
+    try { const text = await voiceTest(); setTest({ phase: "idle", text: text || "(no se entendió nada)" }); }
+    catch (e) { setTest({ phase: "idle", error: String(e) }); }
+  };
   useEffect(() => { const u = on<VoiceProgress>("voice-download", setProg); return () => { u.then((f) => f()); }; }, []);
   const hasModel = (m: "base" | "small") => !!st?.bin && !!st?.[m];
   const ready = hasModel(s.voiceModel);
@@ -337,6 +350,22 @@ function Voice() {
       {s.hotkey !== "Alt+Y" && <Row label="Volver a Alt + Y"><button className="btn small" onClick={() => setSettings({ hotkey: "Alt+Y" })}>Restablecer</button></Row>}
     </Group>
     <p className="note">Escribe o di cosas como «mañana a las 11 llamar a cliente», «nota comprar leche» o «tarea revisar el render el viernes»: IDY entiende la fecha, la hora y si es recordatorio, nota o tarea.</p>
+
+    <Group title="Micrófono">
+      <Row label="Usar" hint={mics.length ? undefined : "No se encontraron micrófonos"}>
+        <select className="sel" value={s.voiceMic} onFocus={() => voiceMics().then(setMics)} onChange={(e) => setSettings({ voiceMic: e.target.value })}>
+          <option value="">Predeterminado de Windows</option>
+          {s.voiceMic && !mics.includes(s.voiceMic) && <option value={s.voiceMic}>{s.voiceMic} (no conectado)</option>}
+          {mics.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </Row>
+      {ready && <Row label="Probar" hint={test.phase === "rec" ? "Habla ahora… (4 s)" : test.phase === "proc" ? "Transcribiendo…" : "Graba 4 segundos y muestra lo que entendió, sin crear nada"}>
+        {test.phase === "rec" ? <span className="mic-meter"><i style={{ width: `${Math.round(lvl * 100)}%` }} /></span>
+          : <button className="btn small" disabled={test.phase !== "idle" || busy} onClick={runTest}>{test.phase === "proc" ? "…" : "Probar voz"}</button>}
+      </Row>}
+    </Group>
+    {test.text && <p className="note ok">«{test.text}»</p>}
+    {test.error && <p className="note err">{test.error}</p>}
 
     <Group title="Voz local">
       {ready ? (
@@ -517,7 +546,7 @@ function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.8.0 · Un notch vivo para Windows</small>
+    <small>Versión 1.8.1 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
       <Row label="Hecho por"><span className="muted">Applexby</span></Row>

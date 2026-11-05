@@ -140,9 +140,9 @@ export default function Notch() {
   const [level, setLevel] = useState(0);
   const listenTimer = useRef<number>();
   useEffect(() => {
-    voiceConfigure({ enabled: s.voiceEnabled, model: s.voiceModel, hotkey: s.hotkey }).catch((e) =>
+    voiceConfigure({ enabled: s.voiceEnabled, model: s.voiceModel, hotkey: s.hotkey, mic: s.voiceMic }).catch((e) =>
       pushHud({ icon: "x", color: "#ff453a", title: `Atajo ${s.hotkey} no disponible`, sub: "Cámbialo en Ajustes" }));
-  }, [s.voiceEnabled, s.voiceModel, s.hotkey]);
+  }, [s.voiceEnabled, s.voiceModel, s.hotkey, s.voiceMic]);
   useEffect(() => {
     const u1 = on<{ state: string; message: string | null }>("voice-state", ({ state, message }) => {
       clearTimeout(listenTimer.current);

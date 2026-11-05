@@ -26,10 +26,13 @@ pub struct VoiceConfig {
     pub enabled: bool,
     pub model: String, // "base" | "small"
     pub hotkey: String,
+    /// Nombre del micrófono; vacío = el predeterminado de Windows
+    #[serde(default)]
+    pub mic: String,
 }
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { enabled: false, model: "base".into(), hotkey: "Alt+Y".into() }
+        Self { enabled: false, model: "base".into(), hotkey: "Alt+Y".into(), mic: String::new() }
     }
 }
 
@@ -83,7 +86,7 @@ fn find_cli(dir: &Path) -> Option<PathBuf> {
                     return Some(f);
                 }
             } else if let Some(n) = path.file_name().and_then(|n| n.to_str()) {
-                if n.eq_ignore_ascii_case("whisper-cli.exe") || n.eq_ignore_ascii_case("main.exe") {
+                if n.eq_ignore_ascii_case("whisper-cli.exe") {
                     return Some(path);
                 }
             }
@@ -183,10 +186,30 @@ pub fn uninstall(app: &AppHandle) -> Result<(), String> {
 
 // ───────── Grabación ─────────
 
-fn record(stop: Arc<AtomicBool>, level: Arc<AtomicU32>) -> Result<(Vec<f32>, u32), String> {
+pub fn list_mics() -> Vec<String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let host = cpal::default_host();
+    let mut v: Vec<String> = host
+        .input_devices()
+        .map(|it| it.filter_map(|d| d.name().ok()).collect())
+        .unwrap_or_default();
+    v.dedup();
+    v
+}
+
+fn record(stop: Arc<AtomicBool>, level: Arc<AtomicU32>, mic: String) -> Result<(Vec<f32>, u32), String> {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
     let host = cpal::default_host();
-    let dev = host.default_input_device().ok_or("No se encontró un micrófono")?;
+    let chosen = if mic.is_empty() {
+        None
+    } else {
+        host.input_devices().ok().and_then(|mut it| it.find(|d| d.name().map(|n| n == mic).unwrap_or(false)))
+    };
+    // si el elegido ya no está conectado, usa el predeterminado
+    let dev = match chosen {
+        Some(d) => d,
+        None => host.default_input_device().ok_or("No se encontró un micrófono")?,
+    };
     let cfg = dev.default_input_config().map_err(|e| format!("Micrófono no disponible: {e}"))?;
     let rate = cfg.sample_rate().0;
     let channels = cfg.channels() as usize;
@@ -274,7 +297,8 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     let stop = Arc::new(AtomicBool::new(false));
     let level = Arc::new(AtomicU32::new(0));
     let (s2, l2) = (stop.clone(), level.clone());
-    let handle = std::thread::spawn(move || record(s2, l2));
+    let mic = voice.config.lock().unwrap().mic.clone();
+    let handle = std::thread::spawn(move || record(s2, l2, mic));
     *slot = Some(Recording { stop: stop.clone(), handle });
     drop(slot);
     emit_state(app, "listening", None);
@@ -338,16 +362,18 @@ fn transcribe(app: &AppHandle, audio: &[f32]) -> Result<String, String> {
     let dir = voice_dir(app)?;
     let cli = find_cli(&dir).ok_or("La voz no está instalada. Actívala en Ajustes › Voz.")?;
     let model = app.state::<Arc<Voice>>().config.lock().unwrap().model.clone();
-    let mut mf = model_file(&dir, &model);
-    if !mf.exists() {
+    let mut model = model;
+    if !model_file(&dir, &model).exists() {
         // usa el otro modelo si es el único descargado
-        let other = model_file(&dir, if model == "base" { "small" } else { "base" });
-        if other.exists() { mf = other } else { return Err("Falta el modelo de voz. Descárgalo en Ajustes › Voz.".into()) }
+        let other = if model == "base" { "small" } else { "base" };
+        if model_file(&dir, other).exists() { model = other.into() } else { return Err("Falta el modelo de voz. Descárgalo en Ajustes › Voz.".into()) }
     }
-    let tmp = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("voz");
+    // Se trabaja con rutas relativas dentro de la carpeta de voz: whisper.cpp falla con
+    // rutas que tienen tildes o caracteres especiales (p. ej. en el nombre de usuario).
+    let tmp = dir.join("tmp");
     std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     let wav = tmp.join("frase.wav");
-    let out = tmp.join("frase");
+    let txt = tmp.join("frase.txt");
     {
         let spec = hound::WavSpec { channels: 1, sample_rate: 16000, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
         let mut w = hound::WavWriter::create(&wav, spec).map_err(|e| e.to_string())?;
@@ -356,37 +382,80 @@ fn transcribe(app: &AppHandle, audio: &[f32]) -> Result<String, String> {
         }
         w.finalize().map_err(|e| e.to_string())?;
     }
-    let _ = std::fs::remove_file(out.with_extension("txt"));
-    let threads = std::thread::available_parallelism().map(|n| (n.get() / 2).clamp(1, 4)).unwrap_or(2);
-    let threads = threads.to_string();
+    let _ = std::fs::remove_file(&txt);
+    let threads = std::thread::available_parallelism().map(|n| (n.get() / 2).clamp(1, 4)).unwrap_or(2).to_string();
+    let model_rel = format!("modelos/ggml-{model}-q5_1.bin");
     let mut cmd = std::process::Command::new(&cli);
-    cmd.current_dir(cli.parent().unwrap_or(&dir))
-        .arg("-m").arg(&mf)
-        .arg("-f").arg(&wav)
+    cmd.current_dir(&dir)
+        .args(["-m", model_rel.as_str(), "-f", "tmp/frase.wav", "-of", "tmp/frase"])
         .args(["-l", "es", "-nt", "-np", "-otxt", "-t", threads.as_str()])
-        .arg("-of").arg(&out)
-        .arg("--prompt").arg("Recordatorio, nota o tarea en español: mañana a las once llamar a cliente.");
+        .args(["--prompt", "Recordatorio, nota o tarea: mañana a las once llamar a cliente."]);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         // sin ventana y con prioridad baja, para no molestar a Premiere o After Effects
         cmd.creation_flags(0x0800_0000 | 0x0000_4000);
     }
-    let output = cmd.output().map_err(|e| format!("No se pudo iniciar la voz: {e}"))?;
-    let text = std::fs::read_to_string(out.with_extension("txt")).unwrap_or_default();
+    let output = cmd.output().map_err(|e| format!("No se pudo iniciar whisper: {e}"))?;
+    let text = std::fs::read_to_string(&txt).unwrap_or_default();
     let _ = std::fs::remove_file(&wav);
     if text.trim().is_empty() && !output.status.success() {
-        return Err(format!("La transcripción falló: {}", String::from_utf8_lossy(&output.stderr).lines().last().unwrap_or("")));
+        let code = output.status.code().unwrap_or(0) as u32;
+        // Guarda el detalle para diagnosticar
+        let log = format!("código {code:#x}\n--- stderr ---\n{}\n--- stdout ---\n{}", String::from_utf8_lossy(&output.stderr), String::from_utf8_lossy(&output.stdout));
+        let _ = std::fs::write(tmp.join("ultimo-error.txt"), &log);
+        if code == 0xC000_0135 || code == 0xC000_007B {
+            return Err("Falta «Microsoft Visual C++ Redistributable (x64)». Instálalo desde la web de Microsoft y vuelve a probar.".into());
+        }
+        if code == 0xC000_001D {
+            return Err("Tu procesador no es compatible con esta versión de whisper.".into());
+        }
+        let last = String::from_utf8_lossy(&output.stderr)
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .last()
+            .unwrap_or("")
+            .chars()
+            .take(140)
+            .collect::<String>();
+        return Err(format!("La transcripción falló ({code:#x}) {last}"));
     }
     // whisper a veces añade marcas como [Música] o (risas)
-    let clean: String = text
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let clean = regex_lite_strip(&clean);
-    Ok(clean)
+    let clean: String = text.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ");
+    Ok(regex_lite_strip(&clean))
+}
+
+/// Prueba desde Ajustes: graba unos segundos y devuelve el texto sin crear nada.
+pub fn test(app: &AppHandle, secs: u64) -> Result<String, String> {
+    let voice = app.state::<Arc<Voice>>().inner().clone();
+    if voice.busy.swap(true, Ordering::Relaxed) {
+        return Err("La voz está ocupada; prueba en un momento.".into());
+    }
+    let result = (|| -> Result<String, String> {
+        let stop = Arc::new(AtomicBool::new(false));
+        let level = Arc::new(AtomicU32::new(0));
+        let mic = voice.config.lock().unwrap().mic.clone();
+        let (s2, l2) = (stop.clone(), level.clone());
+        let h = std::thread::spawn(move || record(s2, l2, mic));
+        let t0 = Instant::now();
+        while t0.elapsed() < Duration::from_secs(secs) {
+            let v = f32::from_bits(level.load(Ordering::Relaxed));
+            let _ = app.emit("voice-test-level", (v * 6.0).min(1.0));
+            std::thread::sleep(Duration::from_millis(70));
+        }
+        stop.store(true, Ordering::Relaxed);
+        let _ = app.emit("voice-test-level", 0.0f32);
+        let _ = app.emit("voice-test-phase", "processing");
+        let (samples, rate) = h.join().map_err(|_| "La grabación falló".to_string())??;
+        let peak = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
+        if peak < 0.003 {
+            return Err("El micrófono no captó sonido. Revisa que esté conectado y no silenciado.".into());
+        }
+        transcribe(app, &resample_16k(&samples, rate))
+    })();
+    voice.busy.store(false, Ordering::Relaxed);
+    result
 }
 
 fn regex_lite_strip(s: &str) -> String {
