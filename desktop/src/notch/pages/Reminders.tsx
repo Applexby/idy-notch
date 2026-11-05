@@ -40,7 +40,8 @@ export default function RemindersPage() {
 
   // Lo escrito se interpreta: "mañana a las 11 llamar a cliente" → fecha + título
   const parsed = t.trim() ? parsePhrase(t) : null;
-  const hasWhen = !!parsed && parsed.at !== null && parsed.understood.some((u) => !/^(recordatorio|recuerda|alarma|aviso|avisa|nota|tarea|con)/.test(u));
+  // Enter crea directo si se entendió una hora, o si se pidió una nota/tarea explícitamente
+  const hasWhen = !!parsed && (parsed.timed || (parsed.explicit && parsed.kind !== "reminder"));
   const title = (hasWhen ? parsed!.title : t.trim());
 
   const add = (at: Date, repeat: Repeat = "none") => {
@@ -50,7 +51,7 @@ export default function RemindersPage() {
   };
   const submit = () => {
     if (custom && !past) return add(target, rep);
-    if (hasWhen && parsed) { createFromPhrase({ ...parsed, kind: parsed.kind === "task" ? "reminder" : parsed.kind }, loud); setT(""); }
+    if (hasWhen && parsed) { createFromPhrase({ ...parsed, kind: parsed.kind === "task" && !parsed.explicit ? "reminder" : parsed.kind }, loud); setT(""); }
   };
 
   const wheel = (set: (f: (v: number) => number) => void, max: number, step: number) => (e: React.WheelEvent) =>
@@ -70,7 +71,7 @@ export default function RemindersPage() {
           </div>
           {hasWhen && !custom && parsed && (
             <button className="parse-preview" onClick={submit} title="Enter para crear">
-              <Ico n={parsed.kind === "note" ? "note" : "alarm"} s={13} /> {describe(parsed)} <span className="kbd">Enter</span>
+              <Ico n={parsed.kind === "note" ? "note" : parsed.kind === "task" && parsed.explicit ? "todo" : "alarm"} s={13} /> {describe(parsed)} <span className="kbd">Enter</span>
             </button>
           )}
           <div className="chips" style={hasWhen && !custom ? { display: "none" } : undefined}>

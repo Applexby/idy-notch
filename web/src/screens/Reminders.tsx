@@ -64,7 +64,7 @@ export default function Reminders() {
     if (!qp) return;
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima";
     if (qp.kind === "note") insert("notes", { title: "", body: qp.title });
-    else if (qp.kind === "task" && !qp.at) insert("tasks", { title: qp.title });
+    else if (qp.kind === "task" && (qp.explicit || !qp.at)) insert("tasks", { title: qp.title, due_at: qp.at ? qp.at.toISOString() : null });
     else insert("reminders", { title: qp.title, fire_at: (qp.at ?? new Date(Date.now() + 36e5)).toISOString(), repeat: qp.repeat, alarm: qp.loud ?? true, timezone: tz });
     toast(describe(qp));
     setQuick("");
