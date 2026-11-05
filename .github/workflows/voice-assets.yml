@@ -1,0 +1,54 @@
+name: Archivos de voz (whisper)
+
+# Copia whisper.cpp para Windows y los modelos de voz a una versión propia del repo
+# ("voice-v1"). IDY los descarga solo cuando activas la voz en Ajustes.
+# No se marca como "latest" para no romper las actualizaciones automáticas.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/voice-assets.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar whisper.cpp y modelos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir out && cd out
+          # Busca la versión más reciente de whisper.cpp que traiga el binario x64 para Windows (CPU)
+          for tag in $(gh release list --repo ggml-org/whisper.cpp --limit 15 --json tagName -q '.[].tagName'); do
+            if gh release view "$tag" --repo ggml-org/whisper.cpp --json assets -q '.assets[].name' | grep -qx 'whisper-bin-x64.zip'; then
+              echo "Usando whisper.cpp $tag"
+              gh release download "$tag" --repo ggml-org/whisper.cpp -p 'whisper-bin-x64.zip'
+              echo "$tag" > whisper-version.txt
+              break
+            fi
+          done
+          test -f whisper-bin-x64.zip
+          unzip -l whisper-bin-x64.zip | grep -i 'whisper-cli.exe'
+          HF=https://huggingface.co/ggerganov/whisper.cpp/resolve/main
+          curl -fL --retry 3 -o ggml-base-q5_1.bin  "$HF/ggml-base-q5_1.bin"
+          curl -fL --retry 3 -o ggml-small-q5_1.bin "$HF/ggml-small-q5_1.bin"
+          ls -la
+
+      - name: Publicar en voice-v1
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: voice-v1
+          name: Archivos de voz de IDY (whisper)
+          body: Programa y modelos de voz que IDY descarga solo si activas la voz. No es una versión de IDY.
+          make_latest: false
+          prerelease: false
+          files: |
+            out/whisper-bin-x64.zip
+            out/ggml-base-q5_1.bin
+            out/ggml-small-q5_1.bin
+            out/whisper-version.txt

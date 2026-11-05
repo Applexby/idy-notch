@@ -1,6 +1,6 @@
 // La mascota de IDY: una llamita propia (blanca sobre el negro del notch).
 // Estados: despierta (mira a los lados y parpadea), dormida (zzz) y saludando.
-export type Mood = "awake" | "sleep" | "hello";
+export type Mood = "awake" | "sleep" | "hello" | "worried";
 
 export default function Llama({ mood }: { mood: Mood }) {
   return (
@@ -17,6 +17,9 @@ export default function Llama({ mood }: { mood: Mood }) {
           <g className="ll-eyes">
             {mood === "hello" ? <>
               <path className="happy" d="M17 21.4q1.3-2.2 2.6 0" /><path className="happy" d="M24.4 21.4q1.3-2.2 2.6 0" />
+            </> : mood === "worried" ? <>
+              <rect className="eye" x="17.1" y="18.4" width="2.4" height="3.6" rx="1.2" /><rect className="eye" x="24.5" y="18.4" width="2.4" height="3.6" rx="1.2" />
+              <path className="happy" d="M16.4 16.6l3.2 1M27.6 16.6l-3.2 1" /><path className="happy" d="M20.4 28q1.6-1.3 3.2 0" />
             </> : mood === "sleep" ? <>
               <path className="happy" d="M17 20.6q1.3 1.4 2.6 0" /><path className="happy" d="M24.4 20.6q1.3 1.4 2.6 0" />
             </> : <>
@@ -26,6 +29,7 @@ export default function Llama({ mood }: { mood: Mood }) {
         </g>
       </svg>
       {mood === "sleep" && <span className="zzz"><i>z</i><i>z</i><i>z</i></span>}
+      {mood === "worried" && <span className="sweat" />}
     </span>
   );
 }

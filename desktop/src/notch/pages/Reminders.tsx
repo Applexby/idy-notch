@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import type { Repeat } from "@shared/types";
 import { COLORS, REPEAT_LABEL } from "@shared/types";
 import { fmtWhen, relTime } from "@shared/time";
-import { addReminder, deleteReminder, useSync } from "../../lib/sync";
+import { addReminder, createFromPhrase, deleteReminder, useSync } from "../../lib/sync";
+import { describe, parsePhrase } from "@shared/parse";
 import { Ico } from "../icons";
 import { Gate } from "./Gate";
 
@@ -37,10 +38,19 @@ export default function RemindersPage() {
   const target = (() => { const d = new Date(); d.setDate(d.getDate() + day); d.setHours(h, m, 0, 0); return d; })();
   const past = target.getTime() <= Date.now();
 
+  // Lo escrito se interpreta: "mañana a las 11 llamar a cliente" → fecha + título
+  const parsed = t.trim() ? parsePhrase(t) : null;
+  const hasWhen = !!parsed && parsed.at !== null && parsed.understood.some((u) => !/^(recordatorio|recuerda|alarma|aviso|avisa|nota|tarea|con)/.test(u));
+  const title = (hasWhen ? parsed!.title : t.trim());
+
   const add = (at: Date, repeat: Repeat = "none") => {
     if (!t.trim()) return;
-    addReminder(t.trim(), at, { repeat, alarm: loud });
+    addReminder(title, at, { repeat, alarm: loud });
     setT(""); setCustom(false); setRep("none");
+  };
+  const submit = () => {
+    if (custom && !past) return add(target, rep);
+    if (hasWhen && parsed) { createFromPhrase({ ...parsed, kind: parsed.kind === "task" ? "reminder" : parsed.kind }, loud); setT(""); }
   };
 
   const wheel = (set: (f: (v: number) => number) => void, max: number, step: number) => (e: React.WheelEvent) =>
@@ -52,13 +62,18 @@ export default function RemindersPage() {
       <div className="rem">
         <div className="rem-add">
           <div className="rem-title">
-            <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Recuérdame…"
-              onKeyDown={(e) => e.key === "Enter" && custom && !past && add(target, rep)} />
+            <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Recuérdame… (ej.: mañana a las 11 llamar a cliente)"
+              onKeyDown={(e) => e.key === "Enter" && submit()} />
             <button className={`nb small ${loud ? "lit-o" : "ghost"}`} onClick={() => setLoud(!loud)} title={loud ? "Sonará como alarma en el notch" : "Solo aviso con campanita"}>
               <Ico n={loud ? "alarm" : "bell"} s={13} /> {loud ? "Alarma" : "Aviso"}
             </button>
           </div>
-          <div className="chips">
+          {hasWhen && !custom && parsed && (
+            <button className="parse-preview" onClick={submit} title="Enter para crear">
+              <Ico n={parsed.kind === "note" ? "note" : "alarm"} s={13} /> {describe(parsed)} <span className="kbd">Enter</span>
+            </button>
+          )}
+          <div className="chips" style={hasWhen && !custom ? { display: "none" } : undefined}>
             {QUICK.map(([l, f]) => <button key={l} className="chip" disabled={!t.trim()} onClick={() => add(f())}>{l}</button>)}
             <button className={`chip ${custom ? "on" : ""}`} onClick={() => setCustom(!custom)}><Ico n="clock" s={12} /> Elegir hora</button>
           </div>

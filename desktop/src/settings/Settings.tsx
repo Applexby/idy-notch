@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usernameToEmail } from "@shared/config";
-import { autostart, invoke, IS_TAURI, on, openUrl, openWeb, quitApp } from "../lib/native";
+import { autostart, invoke, IS_TAURI, on, openUrl, openWeb, quitApp, voiceInstall, voiceStatus, voiceUninstall, type VoiceProgress, type VoiceStatus } from "../lib/native";
 import { checkUpdate, installUpdate, updates } from "../lib/update";
 import { PAGE_LABEL, setSettings, useSettings, type PageId, type Settings } from "../lib/settings";
 import { supabase } from "../lib/supa";
@@ -9,7 +9,7 @@ import { clearShelf } from "../lib/shelf";
 import { listMonitors } from "../lib/window";
 import { Ico, PAGE_ICON } from "../notch/icons";
 
-type Sec = "general" | "display" | "appearance" | "music" | "todo" | "focus" | "reminders" | "shelf" | "hud" | "account" | "about";
+type Sec = "general" | "display" | "appearance" | "music" | "todo" | "focus" | "reminders" | "voice" | "shelf" | "hud" | "account" | "about";
 const SECS: { id: Sec; label: string; icon: string; color: string }[] = [
   { id: "general", label: "General", icon: "gear", color: "#8e8e93" },
   { id: "display", label: "Pantalla", icon: "display", color: "#5e5ce6" },
@@ -18,6 +18,7 @@ const SECS: { id: Sec; label: string; icon: string; color: string }[] = [
   { id: "todo", label: "To-do", icon: "check", color: "#30d158" },
   { id: "focus", label: "Enfoque", icon: "timer", color: "#ff9f0a" },
   { id: "reminders", label: "Recordatorios", icon: "alarm", color: "#ff6b22" },
+  { id: "voice", label: "Voz y atajo", icon: "mic", color: "#ff453a" },
   { id: "shelf", label: "Estante", icon: "shelf", color: "#ffb340" },
   { id: "hud", label: "Avisos", icon: "bell", color: "#32ade6" },
   { id: "account", label: "Cuenta", icon: "user", color: "#0a84ff" },
@@ -83,6 +84,7 @@ export default function SettingsApp() {
           {sec === "todo" && <Todo />}
           {sec === "focus" && <Focus />}
           {sec === "reminders" && <Reminders />}
+          {sec === "voice" && <Voice />}
           {sec === "shelf" && <Shelf />}
           {sec === "hud" && <Hud />}
           {sec === "account" && <Account />}
@@ -259,6 +261,116 @@ function Reminders() {
   </>;
 }
 
+// ───────── Voz y atajo ─────────
+const MODELS: { id: "base" | "small"; label: string; size: string; hint: string }[] = [
+  { id: "base", label: "Rápido", size: "≈ 60 MB", hint: "Responde en 1–2 s. Bien para frases cortas." },
+  { id: "small", label: "Preciso", size: "≈ 190 MB", hint: "Entiende mejor nombres y frases largas; tarda un poco más." },
+];
+const MOD_KEYS = ["Control", "Alt", "Shift", "Meta"];
+
+function keyName(e: KeyboardEvent) {
+  const c = e.code;
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  return c;
+}
+
+function HotkeyInput({ value, set }: { value: string; set: (v: string) => void }) {
+  const [rec, setRec] = useState(false);
+  useEffect(() => {
+    if (!rec) return;
+    const k = (e: KeyboardEvent) => {
+      e.preventDefault();
+      if (e.key === "Escape") return setRec(false);
+      if (MOD_KEYS.includes(e.key)) return;
+      const mods = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter(Boolean) as string[];
+      if (!mods.length && !/^F\d+$/.test(e.code)) return; // necesita Ctrl/Alt/Shift (o una tecla F)
+      set([...mods, keyName(e)].join("+"));
+      setRec(false);
+    };
+    window.addEventListener("keydown", k, true);
+    return () => window.removeEventListener("keydown", k, true);
+  }, [rec]);
+  return (
+    <button className={`btn small hotkey ${rec ? "rec" : ""}`} onClick={() => setRec(!rec)}>
+      {rec ? "Pulsa la combinación…" : value.split("+").map((p) => <kbd key={p}>{p}</kbd>)}
+    </button>
+  );
+}
+
+function Voice() {
+  const s = useSettings();
+  const [st, setSt] = useState<VoiceStatus | null>(null);
+  const [prog, setProg] = useState<VoiceProgress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => { voiceStatus().then(setSt); }, []);
+  useEffect(() => { const u = on<VoiceProgress>("voice-download", setProg); return () => { u.then((f) => f()); }; }, []);
+  const hasModel = (m: "base" | "small") => !!st?.bin && !!st?.[m];
+  const ready = hasModel(s.voiceModel);
+
+  const install = async (model: "base" | "small") => {
+    setBusy(true); setErr(""); setProg(null);
+    try {
+      const r = await voiceInstall(model);
+      if (r) setSt(r);
+      setSettings({ voiceEnabled: true, voiceModel: model });
+    } catch (e) {
+      setErr(String(e));
+    }
+    setBusy(false); setProg(null);
+  };
+  const remove = async () => {
+    setSettings({ voiceEnabled: false });
+    await voiceUninstall().catch(() => {});
+    setSt(await voiceStatus());
+  };
+  const pct = prog && prog.total ? Math.round((prog.received / prog.total) * 100) : null;
+  const mb = (n: number) => `${(n / 1048576).toFixed(0)} MB`;
+
+  return <>
+    <H>Voz y atajo</H>
+    <Group title="Atajo de teclado">
+      <Row label="Atajo" hint="Toque corto: abre el notch para escribir. Mantener pulsado: hablar (si la voz está activada).">
+        <HotkeyInput value={s.hotkey} set={(v) => setSettings({ hotkey: v })} />
+      </Row>
+      {s.hotkey !== "Alt+Y" && <Row label="Volver a Alt + Y"><button className="btn small" onClick={() => setSettings({ hotkey: "Alt+Y" })}>Restablecer</button></Row>}
+    </Group>
+    <p className="note">Escribe o di cosas como «mañana a las 11 llamar a cliente», «nota comprar leche» o «tarea revisar el render el viernes»: IDY entiende la fecha, la hora y si es recordatorio, nota o tarea.</p>
+
+    <Group title="Voz local">
+      {ready ? (
+        <Row label="Dictar con el atajo" hint={`Mantén ${s.hotkey}, habla y suelta.`}>
+          <Switch on={s.voiceEnabled} set={(v) => setSettings({ voiceEnabled: v })} />
+        </Row>
+      ) : (
+        <Row label="Activar la voz" hint={busy ? undefined : "Se descarga una sola vez y funciona sin internet."}>
+          <button className="btn small primary-s" disabled={busy} onClick={() => install(s.voiceModel)}>
+            {busy ? (pct !== null ? `${prog?.what === "programa" ? "Programa" : "Modelo"} ${pct}%` : "Descargando…") : `Descargar (${MODELS.find((m) => m.id === s.voiceModel)?.size})`}
+          </button>
+        </Row>
+      )}
+      {busy && prog && <div className="dl-bar"><i style={{ width: `${pct ?? 5}%` }} /><span>{mb(prog.received)}{prog.total ? ` de ${mb(prog.total)}` : ""}</span></div>}
+      <Row label="Modelo" hint={MODELS.find((m) => m.id === s.voiceModel)?.hint}>
+        <Seg value={s.voiceModel} set={(v) => { setSettings({ voiceModel: v }); if (st?.bin && !st[v]) setSettings({ voiceEnabled: false }); }}
+          opts={MODELS.map((m) => [m.id, `${m.label}${hasModel(m.id) ? " ✓" : ""}`] as ["base" | "small", string])} />
+      </Row>
+      {st?.bin && !hasModel(s.voiceModel) && !busy && (
+        <Row label={`Falta el modelo ${MODELS.find((m) => m.id === s.voiceModel)?.label}`}>
+          <button className="btn small" onClick={() => install(s.voiceModel)}>Descargar</button>
+        </Row>
+      )}
+      {(st?.bin || st?.base || st?.small) && (
+        <Row label="Borrar archivos de voz" hint="Libera el espacio; puedes volver a descargarlos cuando quieras.">
+          <button className="btn small" disabled={busy} onClick={remove}>Borrar</button>
+        </Row>
+      )}
+    </Group>
+    {err && <p className="note err">No se pudo descargar: {err}</p>}
+    <p className="note">Todo se procesa en tu PC: la voz no se envía a internet. Whisper solo se abre mientras transcribe (con prioridad baja, para no frenar Premiere ni After Effects) y se cierra al terminar; el resto del tiempo no usa memoria.</p>
+  </>;
+}
+
 function Shelf() {
   return <>
     <H>Estante</H>
@@ -405,7 +517,7 @@ function About() {
   return <div className="aboutp">
     <img src="/app-icon.png" width={72} height={72} alt="" />
     <h3>IDY Notch</h3>
-    <small>Versión 1.7.1 · Un notch vivo para Windows</small>
+    <small>Versión 1.8.0 · Un notch vivo para Windows</small>
     <Group title="Info">
       <Row label="Letras"><button className="lnk" onClick={() => openUrl("https://lrclib.net")}>LRCLIB ›</button></Row>
       <Row label="Hecho por"><span className="muted">Applexby</span></Row>

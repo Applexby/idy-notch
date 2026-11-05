@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import type { Group, Profile } from "@shared/types";
 import { supabase } from "./supabase";
 import { Icon } from "./ui";
+import { useOnline } from "./hooks";
 import Auth from "./screens/Auth";
 import Reminders from "./screens/Reminders";
 import Notes from "./screens/Notes";
@@ -60,6 +61,7 @@ export default function App() {
 
   return (
     <AppCtx.Provider value={{ session, profile, groups, reloadGroups }}>
+      <OfflineBar />
       <main className={`app tab-${tab}`}>
         {tab === "reminders" && <Reminders />}
         {tab === "notes" && <Notes />}
@@ -75,5 +77,15 @@ export default function App() {
         ))}
       </nav>
     </AppCtx.Provider>
+  );
+}
+
+function OfflineBar() {
+  const { online, pending } = useOnline();
+  if (online && !pending) return null;
+  return (
+    <div className="offline-bar">
+      {online ? `Subiendo ${pending} cambio${pending === 1 ? "" : "s"}…` : `Sin conexión · ${pending ? `${pending} cambio${pending === 1 ? "" : "s"} se subirán al volver internet` : "lo que hagas se guardará"}`}
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { COLORS } from "@shared/types";
 import { fmtWhen, fromLocalInput, toLocalInput } from "@shared/time";
 import { useApp } from "../App";
 import { useNow, useTable } from "../hooks";
-import { supabase } from "../supabase";
+import { insert, remove as removeRow, update } from "../db";
 import { ColorDots, Empty, GroupSelect, Icon, Row, Segmented, Sheet, Toggle, toast } from "../ui";
 
 type Filter = "today" | "upcoming" | "all" | "done";
@@ -40,14 +40,14 @@ export default function Tasks() {
     const title = quick.trim();
     if (!title) return;
     setQuick("");
-    const { error } = await supabase.from("tasks").insert({ title, due_at: filter === "today" ? endOfToday() : null });
+    const { error } = insert("tasks", { title, due_at: filter === "today" ? endOfToday() : null });
     if (error) toast(error.message);
   }
 
   async function toggle(t: Task) {
     const patch = { done: !t.done, completed_at: !t.done ? new Date().toISOString() : null };
     patchLocal(t.id, patch);
-    await supabase.from("tasks").update(patch).eq("id", t.id);
+    update("tasks", t.id, patch);
   }
 
   async function save() {
@@ -58,7 +58,7 @@ export default function Tasks() {
       duration_min: draft.hasDue && draft.duration_min ? Number(draft.duration_min) : null,
       priority: draft.priority ?? 0, color: draft.color ?? "blue", group_id: draft.group_id ?? null,
     };
-    const { error } = draft.id ? await supabase.from("tasks").update(payload).eq("id", draft.id) : await supabase.from("tasks").insert(payload);
+    const { error } = draft.id ? update("tasks", draft.id, payload) : insert("tasks", payload);
     if (error) return toast(error.message);
     setDraft(null);
   }
@@ -66,7 +66,7 @@ export default function Tasks() {
   async function remove(id: string) {
     patchLocal(id, null);
     setDraft(null);
-    await supabase.from("tasks").delete().eq("id", id);
+    removeRow("tasks", id);
   }
 
   return (

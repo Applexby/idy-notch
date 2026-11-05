@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { COLORS } from "@shared/types";
+import { parsePhrase } from "@shared/parse";
 import { addTask, clearDoneTasks, deleteTask, toggleTask, useSync } from "../../lib/sync";
 import { Ico } from "../icons";
 import { Gate } from "./Gate";
@@ -12,7 +13,8 @@ export default function TasksPage() {
   const today = new Date().toDateString();
   const list = tasks.filter((x) => !x.done || (x.completed_at && new Date(x.completed_at).toDateString() === today));
   const doneN = list.filter((x) => x.done).length;
-  const submit = () => { if (t.trim()) { addTask(t.trim()); setT(""); } };
+  // "mañana enviar cotización" → tarea con fecha
+  const submit = () => { if (!t.trim()) return; const p = parsePhrase(t); addTask(p.title, p.at); setT(""); };
 
   return (
     <Gate color="#0a84ff" icon="todo">

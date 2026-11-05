@@ -4,7 +4,7 @@ import { COLORS } from "@shared/types";
 import { relTime } from "@shared/time";
 import { useApp } from "../App";
 import { useTable } from "../hooks";
-import { supabase } from "../supabase";
+import { insert, remove as removeRow, update } from "../db";
 import { ColorDots, Empty, GroupSelect, Icon, Sheet, toast } from "../ui";
 
 type Draft = Partial<Note> & { title: string; body: string; checklist: ChecklistItem[] };
@@ -38,19 +38,19 @@ export default function Notes() {
     const payload = { title: d.title.trim(), body: d.body, checklist, color: d.color ?? "default", pinned: !!d.pinned,
       archived: !!d.archived, group_id: d.group_id ?? null };
     if (d.id) { patchLocal(d.id, payload); }
-    const { error } = d.id ? await supabase.from("notes").update(payload).eq("id", d.id) : await supabase.from("notes").insert(payload);
+    const { error } = d.id ? update("notes", d.id, payload) : insert("notes", payload);
     if (error) toast(error.message);
   }
 
   async function remove(id: string) {
     patchLocal(id, null);
-    await supabase.from("notes").delete().eq("id", id);
+    removeRow("notes", id);
   }
 
   async function toggleItem(n: Note, itemId: string) {
     const checklist = n.checklist.map((c) => (c.id === itemId ? { ...c, done: !c.done } : c));
     patchLocal(n.id, { checklist });
-    await supabase.from("notes").update({ checklist }).eq("id", n.id);
+    update("notes", n.id, { checklist });
   }
 
   const Card = ({ n }: { n: Note }) => (

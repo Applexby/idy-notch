@@ -5,6 +5,7 @@
 
 mod media;
 mod system;
+mod voice;
 #[cfg(windows)]
 mod droptarget;
 
@@ -204,6 +205,52 @@ pub fn reregister_drop(app: &AppHandle) {
 #[cfg(not(windows))]
 pub fn reregister_drop(_app: &AppHandle) {}
 
+// ───────── Voz y atajo ─────────
+
+/// Guarda la configuración de voz y (re)registra el atajo global.
+#[tauri::command]
+fn voice_configure(app: AppHandle, config: voice::VoiceConfig) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+    let key = config.hotkey.trim().to_string();
+    *app.state::<Arc<voice::Voice>>().config.lock().unwrap() = config;
+    if key.is_empty() {
+        return Ok(());
+    }
+    gs.register(key.as_str()).map_err(|e| format!("No se pudo usar {key}: {e}"))
+}
+
+#[tauri::command]
+fn voice_status(app: AppHandle) -> Result<voice::VoiceStatus, String> {
+    voice::status(&app)
+}
+
+#[tauri::command]
+async fn voice_install(app: AppHandle, model: String) -> Result<voice::VoiceStatus, String> {
+    voice::install(app, model).await
+}
+
+#[tauri::command]
+fn voice_uninstall(app: AppHandle) -> Result<(), String> {
+    voice::uninstall(&app)
+}
+
+#[tauri::command]
+fn voice_start(app: AppHandle) -> Result<(), String> {
+    voice::start(&app)
+}
+
+#[tauri::command]
+fn voice_stop(app: AppHandle) {
+    voice::stop(&app)
+}
+
+#[tauri::command]
+fn voice_cancel(app: AppHandle) {
+    voice::cancel(&app)
+}
+
 pub fn run() {
     let shared = Arc::new(Shared::default());
 
@@ -219,6 +266,15 @@ pub fn run() {
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // Atajo global (Alt+Y por defecto): mantener = hablar, toque corto = escribir
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    voice::on_shortcut(app, event.state() == ShortcutState::Pressed);
+                })
+                .build(),
+        )
         // Soltar archivos en el notch: se captura aquí (nativo) y se reenvía al Estante
         .on_window_event(|window, event| {
             if window.label() != "notch" {
@@ -237,6 +293,7 @@ pub fn run() {
             }
         })
         .manage(shared.clone())
+        .manage(Arc::new(voice::Voice::default()))
         .invoke_handler(tauri::generate_handler![
             set_hit_rect,
             media_command,
@@ -247,7 +304,14 @@ pub fn run() {
             get_volume,
             set_volume,
             open_web,
-            quit_app
+            quit_app,
+            voice_configure,
+            voice_status,
+            voice_install,
+            voice_uninstall,
+            voice_start,
+            voice_stop,
+            voice_cancel
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

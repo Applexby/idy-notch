@@ -30,6 +30,9 @@ export interface Settings {
   volume: number; // 0..1
   pages: PageId[];
   webUrl: string;
+  voiceEnabled: boolean;
+  voiceModel: "base" | "small";
+  hotkey: string; // "Alt+Y"
 }
 
 export const DEFAULTS: Settings = {
@@ -42,6 +45,7 @@ export const DEFAULTS: Settings = {
   alarmLoop: true, volume: 0.7,
   pages: ["music", "focus", "shelf", "tasks", "notes", "reminders"],
   webUrl: "https://web-mauve-five-n7g1wnmllz.vercel.app",
+  voiceEnabled: false, voiceModel: "base", hotkey: "Alt+Y",
 };
 
 export const PAGE_LABEL: Record<PageId, string> = {

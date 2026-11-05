@@ -5,30 +5,64 @@ import type { Session } from "@supabase/supabase-js";
 import type { Note, Reminder, Repeat, Task } from "@shared/types";
 import { supabase } from "./supa";
 import { getSettings, local } from "./settings";
+import { cache, createOffline, newId, type Table } from "@shared/offline";
+import type { Parsed } from "@shared/parse";
 
 export interface SyncState {
   session: Session | null;
   ready: boolean;
+  online: boolean;
+  pending: number; // cambios guardados que aún no se subieron
   reminders: Reminder[];
   tasks: Task[];
   notes: Note[];
 }
 
-let state: SyncState = { session: null, ready: false, reminders: [], tasks: [], notes: [] };
+const CACHE_KEY = "idy-cache";
+type Snapshot = { reminders: Reminder[]; tasks: Task[]; notes: Note[]; uid?: string };
+// Lo que vino del servidor (sin los cambios pendientes encima)
+let server: Snapshot = cache.get<Snapshot>(CACHE_KEY) ?? { reminders: [], tasks: [], notes: [] };
+
+let state: SyncState = { session: null, ready: false, online: navigator.onLine, pending: 0, reminders: [], tasks: [], notes: [] };
 const subs = new Set<() => void>();
 const set = (p: Partial<SyncState>) => { state = { ...state, ...p }; subs.forEach((f) => f()); };
 export const useSync = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => state);
 export const getSync = () => state;
 
+const byNext = (a: Reminder, b: Reminder) => (a.next_fire_at ?? "9").localeCompare(b.next_fire_at ?? "9");
+const byDue = (a: Task, b: Task) => Number(a.done) - Number(b.done) || (a.due_at ?? "9").localeCompare(b.due_at ?? "9") || a.position - b.position;
+const byNote = (a: Note, b: Note) => Number(b.pinned) - Number(a.pinned) || b.updated_at.localeCompare(a.updated_at);
+
+/** Muestra lo del servidor + los cambios pendientes */
+function render() {
+  set({
+    reminders: offline.overlay("reminders", server.reminders).sort(byNext),
+    tasks: offline.overlay("tasks", server.tasks).sort(byDue),
+    notes: offline.overlay("notes", server.notes).sort(byNote).slice(0, 20),
+    pending: offline.pending(),
+  });
+}
+const offline = createOffline(supabase, "idy-outbox", () => render());
+
 async function loadAll() {
   if (!state.session) return set({ reminders: [], tasks: [], notes: [], ready: true });
+  await offline.flush(); // primero sube lo pendiente
   const since = new Date(Date.now() - 864e5).toISOString();
-  const [r, t, n] = await Promise.all([
-    supabase.from("reminders").select("*").or(`done.eq.false,last_fired_at.gte.${since}`).order("next_fire_at", { nullsFirst: false }),
-    supabase.from("tasks").select("*").or(`done.eq.false,completed_at.gte.${since}`).order("due_at", { nullsFirst: false }).order("position"),
-    supabase.from("notes").select("*").eq("archived", false).order("pinned", { ascending: false }).order("updated_at", { ascending: false }).limit(20),
-  ]);
-  set({ reminders: (r.data ?? []) as Reminder[], tasks: (t.data ?? []) as Task[], notes: (n.data ?? []) as Note[], ready: true });
+  try {
+    const [r, t, n] = await Promise.all([
+      supabase.from("reminders").select("*").or(`done.eq.false,last_fired_at.gte.${since}`),
+      supabase.from("tasks").select("*").or(`done.eq.false,completed_at.gte.${since}`),
+      supabase.from("notes").select("*").eq("archived", false).order("pinned", { ascending: false }).order("updated_at", { ascending: false }).limit(30),
+    ]);
+    if (r.error || t.error || n.error) throw r.error ?? t.error ?? n.error;
+    server = { reminders: r.data as Reminder[], tasks: t.data as Task[], notes: n.data as Note[], uid: state.session.user.id };
+    cache.set(CACHE_KEY, server);
+    set({ online: true });
+  } catch {
+    set({ online: false }); // sin red: seguimos con la caché
+  }
+  render();
+  set({ ready: true });
 }
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -38,16 +72,22 @@ const scheduleReload = () => { clearTimeout(reloadTimer); reloadTimer = window.s
 export async function startSync() {
   const { data } = await supabase.auth.getSession();
   set({ session: data.session });
+  // Abre al instante con lo guardado (aunque no haya internet)
+  if (data.session && server.uid === data.session.user.id) { render(); set({ ready: true }); }
   supabase.auth.onAuthStateChange((_e, s) => {
     const changed = s?.user.id !== state.session?.user.id;
     set({ session: s });
-    if (changed) { subscribe(); loadAll(); }
+    if (changed) {
+      if (!s) { server = { reminders: [], tasks: [], notes: [] }; cache.set(CACHE_KEY, server); offline.clear(); }
+      subscribe(); loadAll();
+    }
   });
   subscribe();
   await loadAll();
   // Respaldo por si Realtime se corta (suspensión del PC, red)
   setInterval(loadAll, 5 * 60e3);
-  window.addEventListener("online", loadAll);
+  window.addEventListener("online", () => { set({ online: true }); loadAll(); });
+  window.addEventListener("offline", () => set({ online: false }));
   // La sesión se inicia en la ventana de Ajustes: recógela aquí
   window.addEventListener("storage", (e) => { if (e.key === "idy-auth") supabase.auth.getSession().then(({ data }) => {
     if (data.session?.user.id !== state.session?.user.id) { set({ session: data.session }); subscribe(); loadAll(); }
@@ -64,62 +104,55 @@ function subscribe() {
     .subscribe();
 }
 
-// ───────── Acciones ─────────
-const patch = <K extends "reminders" | "tasks" | "notes">(k: K, id: string, p: Partial<SyncState[K][number]> | null) =>
-  set({ [k]: p === null ? (state[k] as { id: string }[]).filter((x) => x.id !== id) : (state[k] as { id: string }[]).map((x) => (x.id === id ? { ...x, ...p } : x)) } as Partial<SyncState>);
+// ───────── Acciones (funcionan sin internet) ─────────
+const uid = () => state.session?.user.id ?? "";
+const nowIso = () => new Date().toISOString();
+const upd = (table: Table, id: string, data: Record<string, unknown>) => offline.push({ table, kind: "update", id, data });
+const del = (table: Table, id: string) => offline.push({ table, kind: "delete", id });
 
-export async function addTask(title: string) {
-  await supabase.from("tasks").insert({ title });
-  scheduleReload();
+export function addTask(title: string, due?: Date | null) {
+  const id = newId();
+  const data = { title, due_at: due ? due.toISOString() : null };
+  const row: Task = { id, owner_id: uid(), group_id: null, title, notes: null, due_at: data.due_at, duration_min: null, priority: 0, color: "blue",
+    done: false, completed_at: null, position: Date.now() / 1000, created_at: nowIso(), updated_at: nowIso() };
+  offline.push({ table: "tasks", kind: "insert", id, data, row: row as unknown as Record<string, unknown> });
 }
-export async function toggleTask(t: Task) {
-  const p = { done: !t.done, completed_at: !t.done ? new Date().toISOString() : null };
-  patch("tasks", t.id, p);
-  await supabase.from("tasks").update(p).eq("id", t.id);
+export function toggleTask(t: Task) {
+  upd("tasks", t.id, { done: !t.done, completed_at: !t.done ? nowIso() : null });
 }
-export async function addNote(body: string) {
+export function addNote(body: string) {
   const [first, ...rest] = body.trim().split("\n");
-  const payload = rest.length ? { title: first.slice(0, 120), body: rest.join("\n") } : { title: "", body: first };
-  await supabase.from("notes").insert(payload);
-  scheduleReload();
+  const data = rest.length ? { title: first.slice(0, 120), body: rest.join("\n") } : { title: "", body: first };
+  const id = newId();
+  const row: Note = { id, owner_id: uid(), group_id: null, ...data, checklist: [], color: "default", pinned: false, archived: false, created_at: nowIso(), updated_at: nowIso() };
+  offline.push({ table: "notes", kind: "insert", id, data, row: row as unknown as Record<string, unknown> });
 }
-export async function addReminder(title: string, at: Date, opts: { repeat?: Repeat; alarm?: boolean } = {}) {
+export function addReminder(title: string, at: Date, opts: { repeat?: Repeat; alarm?: boolean } = {}) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima";
-  await supabase.from("reminders").insert({ title, fire_at: at.toISOString(), timezone, repeat: opts.repeat ?? "none", alarm: opts.alarm ?? true });
-  scheduleReload();
+  const id = newId();
+  const data = { title, fire_at: at.toISOString(), timezone, repeat: opts.repeat ?? "none", alarm: opts.alarm ?? true };
+  const row: Reminder = { id, owner_id: uid(), group_id: null, notes: null, next_fire_at: data.fire_at, color: "orange", last_fired_at: null, done: false,
+    created_at: nowIso(), updated_at: nowIso(), ...data };
+  offline.push({ table: "reminders", kind: "insert", id, data, row: row as unknown as Record<string, unknown> });
 }
-export async function deleteTask(id: string) {
-  patch("tasks", id, null);
-  await supabase.from("tasks").delete().eq("id", id);
-}
-export async function clearDoneTasks() {
-  const ids = state.tasks.filter((t) => t.done).map((t) => t.id);
-  if (!ids.length) return;
-  set({ tasks: state.tasks.filter((t) => !t.done) });
-  await supabase.from("tasks").delete().in("id", ids);
-}
-export async function updateNote(id: string, p: Partial<Note>) {
-  patch("notes", id, p);
-  await supabase.from("notes").update(p).eq("id", id);
-}
-export async function deleteNote(id: string) {
-  patch("notes", id, null);
-  await supabase.from("notes").delete().eq("id", id);
-}
-export async function deleteReminder(id: string) {
-  patch("reminders", id, null);
-  await supabase.from("reminders").delete().eq("id", id);
-}
-export async function snoozeReminder(id: string, min: number) {
+export function deleteTask(id: string) { del("tasks", id); }
+export function clearDoneTasks() { state.tasks.filter((t) => t.done).forEach((t) => del("tasks", t.id)); }
+export function updateNote(id: string, p: Partial<Note>) { upd("notes", id, { ...p, updated_at: nowIso() }); }
+export function deleteNote(id: string) { del("notes", id); }
+export function deleteReminder(id: string) { del("reminders", id); }
+export function snoozeReminder(id: string, min: number) {
   const fire_at = new Date(Date.now() + min * 60e3).toISOString();
-  patch("reminders", id, { fire_at, next_fire_at: fire_at, done: false });
-  await supabase.from("reminders").update({ fire_at, done: false }).eq("id", id);
+  upd("reminders", id, { fire_at, next_fire_at: fire_at, done: false });
 }
-export async function snoozeTask(t: Task, min: number) {
-  // mueve el fin de la tarea: extiende la duración
-  const dur = (t.duration_min ?? 0) + min;
-  patch("tasks", t.id, { duration_min: dur });
-  await supabase.from("tasks").update({ duration_min: dur }).eq("id", t.id);
+export function snoozeTask(t: Task, min: number) {
+  upd("tasks", t.id, { duration_min: (t.duration_min ?? 0) + min }); // extiende la duración
+}
+
+/** Crea lo que diga una frase ("mañana a las 11 llamar a cliente") */
+export function createFromPhrase(p: Parsed, defaultLoud = true) {
+  if (p.kind === "note") addNote(p.title);
+  else if (p.kind === "task") addTask(p.title, p.at);
+  else addReminder(p.title, p.at ?? new Date(Date.now() + 36e5), { repeat: p.repeat, alarm: p.loud ?? defaultLoud });
 }
 
 // ───────── Planificador de alarmas ─────────

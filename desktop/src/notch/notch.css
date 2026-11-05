@@ -422,3 +422,25 @@ button.note-card:hover { background: #18181b; transform: translateY(-1px); }
 .batt-ring .br-num { position: relative; font-style: normal; font-size: 7.5px; font-weight: 800; color: var(--t1); letter-spacing: -.02em; }
 .bt-ring { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 3px currentColor; }
 .bt-btn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; background: rgba(10,132,255,.12); }
+
+/* v1.8: frase interpretada */
+.parse-preview { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px; border-radius: 10px; background: rgba(255,159,10,.12); color: #ffc46b;
+  font-size: 12.5px; font-weight: 600; text-align: left; animation: rise .2s var(--ease) both; }
+.parse-preview .kbd { margin-left: auto; font-size: 10.5px; color: var(--t3); border: 1px solid #333; border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; }
+.sync-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 10.5px; color: #ffd60a; }
+/* llama preocupada (batería baja) */
+.llama.worried .ll-body { animation: ll-shiver 2.4s ease-in-out infinite; }
+@keyframes ll-shiver { 0%, 70%, 100% { transform: translateX(0); } 74%, 82% { transform: translateX(-.6px); } 78%, 86% { transform: translateX(.6px); } }
+.sweat { position: absolute; left: calc(50% + 11px); top: 9px; width: 4px; height: 6px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #64d2ff; animation: ll-drop 2.4s ease-in infinite; }
+@keyframes ll-drop { 0% { opacity: 0; transform: translateY(-2px); } 20% { opacity: 1; } 80% { opacity: 1; transform: translateY(5px); } 100% { opacity: 0; transform: translateY(6px); } }
+
+/* ───── Voz (Alt+Y) ───── */
+.voice { justify-content: flex-start; gap: 12px; padding: 0 18px; }
+.v-mic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; background: #ff453a; }
+.voice.listening .v-mic { animation: v-pulse 1.2s ease-in-out infinite; }
+.voice.processing .v-mic { background: var(--chip-2); color: #ff9f0a; }
+@keyframes v-pulse { 0%, 100% { box-shadow: 0 0 0 0 #ff453a66; } 50% { box-shadow: 0 0 0 6px #ff453a00; } }
+.v-level { display: flex; align-items: center; gap: 3px; height: 22px; flex: none; }
+.v-level i { width: 3.5px; height: 100%; border-radius: 3px; background: #ff453a; transform-origin: center; transition: transform .08s linear; }
+.v-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.4px solid var(--chip-2); border-top-color: #ff9f0a; flex: none; animation: v-rot .8s linear infinite; }
+@keyframes v-rot { to { transform: rotate(360deg); } }

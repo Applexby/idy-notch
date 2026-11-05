@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { on, openSettings, openWeb, setHitRect } from "../lib/native";
+import { focusSelf, on, openSettings, openWeb, setHitRect, voiceConfigure } from "../lib/native";
 import { checkUpdate, updates } from "../lib/update";
 import { getSettings, PAGE_LABEL, useSettings, type PageId } from "../lib/settings";
 import { focus, FOCUS_LABEL, onFocusDone, remaining, total } from "../lib/focus";
 import { addPaths, addText, shelf } from "../lib/shelf";
 import { alarm as alarmSound, chime } from "../lib/sound";
-import { dueEvents, snoozeReminder, snoozeTask, type AlarmEvent } from "../lib/sync";
+import { createFromPhrase, dueEvents, snoozeReminder, snoozeTask, useSync, type AlarmEvent } from "../lib/sync";
+import { describe, parsePhrase } from "@shared/parse";
 import { currentLine } from "../lib/lyrics";
 import { BASE_W, placeWindow, type Placement } from "../lib/window";
 import { mediaStore, sysStore, usePosition, useSystemHuds } from "./useNative";
@@ -28,6 +29,7 @@ const G = {
   focus: { w: 272, h: 32, r: 15 },
   mascot: { w: 214, h: 32, r: 15 },
   hud: { w: 340, h: 50, r: 24 },
+  voice: { w: 300, h: 50, r: 24 },
   alarm: { w: 470, h: 132, r: 32 },
   open: { w: 590, h: 210, r: 32 },
 } satisfies Record<string, Geo>;
@@ -47,6 +49,7 @@ export default function Notch() {
   const med = mediaStore.use();
   const f = focus.use();
   const sh = shelf.use();
+  const sync = useSync();
   const pos = usePosition(4);
 
   const pages = s.pages.length ? s.pages : (["music"] as PageId[]);
@@ -83,6 +86,26 @@ export default function Notch() {
       pushHud({ kind: "power", icon: "bolt", color: battColor(d.percent, kind === "charging"), percent: d.percent, charging: kind === "charging",
         title: kind === "charging" ? "Cargando" : "Con batería", sub: kind === "charging" ? "Cargador conectado" : "Cargador desconectado" });
   });
+  // Batería baja: avisa al 20 %, 10 % y 5 %, una vez por descarga
+  const warned = useRef<number>(101);
+  useEffect(() => {
+    const p = sys.power;
+    if (!p?.has_battery) return;
+    if (p.charging) { warned.current = 101; return; }
+    const step = [5, 10, 20].find((t) => p.percent <= t);
+    if (step !== undefined && step < warned.current) {
+      warned.current = step;
+      if (s.hudCharging) {
+        pushHud({ kind: "power", icon: "battery", color: battColor(p.percent), percent: p.percent, charging: false,
+          title: step <= 5 ? "Batería muy baja" : "Batería baja", sub: step <= 10 ? "Conecta el cargador pronto" : "Te queda poco" });
+        chime(true);
+        setWorried(true);
+      }
+    }
+  }, [sys.power?.percent, sys.power?.charging]);
+  const [worried, setWorried] = useState(false);
+  useEffect(() => { if (sys.power?.charging) setWorried(false); }, [sys.power?.charging]);
+
   useEffect(() => onFocusDone((mode, next) => pushHud({
     icon: "timer", color: "#ff9f0a", title: mode === "focus" ? "¡Buen trabajo!" : "Se acabó el descanso", sub: `Sigue: ${FOCUS_LABEL[next]}`,
   })), [pushHud]);
@@ -111,6 +134,47 @@ export default function Notch() {
     }
     setAlarms((q) => q.slice(1));
   };
+
+  // ── Voz (Alt+Y): mantener = hablar, toque = escribir ──
+  const [voice, setVoice] = useState<"idle" | "listening" | "processing">("idle");
+  const [level, setLevel] = useState(0);
+  const listenTimer = useRef<number>();
+  useEffect(() => {
+    voiceConfigure({ enabled: s.voiceEnabled, model: s.voiceModel, hotkey: s.hotkey }).catch((e) =>
+      pushHud({ icon: "x", color: "#ff453a", title: `Atajo ${s.hotkey} no disponible`, sub: "Cámbialo en Ajustes" }));
+  }, [s.voiceEnabled, s.voiceModel, s.hotkey]);
+  useEffect(() => {
+    const u1 = on<{ state: string; message: string | null }>("voice-state", ({ state, message }) => {
+      clearTimeout(listenTimer.current);
+      // "Escuchando" aparece tras un instante, para que un toque corto no parpadee
+      if (state === "listening") listenTimer.current = window.setTimeout(() => setVoice("listening"), 260);
+      else if (state === "processing") setVoice("processing");
+      else setVoice("idle");
+      if (state === "error" && message) pushHud({ icon: "mic", color: "#ff453a", title: message });
+    });
+    const u2 = on<number>("voice-level", setLevel);
+    const u3 = on<string>("voice-text", (text) => {
+      const p = parsePhrase(text);
+      if (!p.title) return pushHud({ icon: "mic", color: "#ff453a", title: "No entendí", sub: text.slice(0, 24) });
+      if (!sync.session) return pushHud({ icon: "gear", color: "#ff9f0a", title: "Inicia sesión para guardar", sub: "Ajustes › Cuenta" });
+      createFromPhrase(p, true);
+      chime();
+      pushHud({ icon: p.kind === "note" ? "note" : p.kind === "task" ? "todo" : "alarm",
+        color: p.kind === "note" ? "#ffd60a" : p.kind === "task" ? "#0a84ff" : "#ff9f0a",
+        title: describe(p).replace(/^(Nota|Tarea) · /, ""), sub: p.kind === "note" ? "Nota" : p.kind === "task" ? "Tarea" : "Listo" });
+    });
+    const u4 = on("voice-tap", () => {
+      const target = (["reminders", "tasks", "notes"] as PageId[]).find((p) => pages.includes(p));
+      if (!target) return;
+      setUserHidden(false);
+      setOpen(true);
+      setPage(target);
+      focusSelf().then(() => setTimeout(() => {
+        document.querySelector<HTMLInputElement>(".open .page input, .open .page textarea")?.focus();
+      }, 140));
+    });
+    return () => { [u1, u2, u3, u4].forEach((u) => u.then((f) => f())); };
+  }, [pages.join(), pushHud, sync.session]);
 
   // ── Mascota ──
   const prevIdle = useRef(0);
@@ -189,6 +253,7 @@ export default function Notch() {
   };
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
+      if (open && e.key === "Escape") { (document.activeElement as HTMLElement | null)?.blur(); setOpen(false); setInputHold(false); return; }
       if (!open || (e.target as HTMLElement).tagName.match(/INPUT|TEXTAREA/)) return;
       if (e.key === "ArrowRight") step(1);
       if (e.key === "ArrowLeft") step(-1);
@@ -224,8 +289,8 @@ export default function Notch() {
     return "resting";
   }, [focusOn, playing, s.showLyrics, s.lyricsActive, s.lyricsInClosed, lyricText, s.mascot, hello, sys.idle, away, s.minimal, dodge]);
 
-  const mode = hidden ? "hidden" : current ? "alarm" : open ? "open" : huds.length ? "hud" : "closed";
-  const geo: Geo = mode === "alarm" ? G.alarm : mode === "open" ? G.open : mode === "hud" ? G.hud
+  const mode = current ? "alarm" : voice !== "idle" ? "voice" : hidden ? "hidden" : open ? "open" : huds.length ? "hud" : "closed";
+  const geo: Geo = mode === "alarm" ? G.alarm : mode === "voice" ? G.voice : mode === "open" ? G.open : mode === "hud" ? G.hud
     : closed === "lyrics" ? { w: Math.min(560, Math.max(300, textWidth(lyricText) + 118)), h: 32, r: 15 }
     : closed === "music" ? G.music : closed === "focus" ? G.focus : closed === "minimal" ? G.minimal
     : closed.startsWith("mascot") || closed === "hello" ? G.mascot : G.resting;
@@ -277,7 +342,7 @@ export default function Notch() {
             {closed === "lyrics" && <><Art src={med.art} size={20} /><span className="c-lyric" key={lyricIdx}>{lyricText}</span><Bars on /></>}
             {closed === "focus" && <><Ring p={1 - remaining() / total()} color={f.mode === "focus" ? "#ff9f0a" : "#30d158"} />
               <span className="c-focus" style={{ color: f.mode === "focus" ? "#ff9f0a" : "#30d158" }}>{fmtMs(remaining())}</span></>}
-            {(closed === "mascot" || closed === "mascot-sleep" || closed === "hello") && <Mascot mood={closed === "hello" ? "hello" : closed === "mascot" ? "awake" : "sleep"} />}
+            {(closed === "mascot" || closed === "mascot-sleep" || closed === "hello") && <Mascot mood={closed === "hello" ? "hello" : closed === "mascot" ? (worried ? "worried" : "awake") : "sleep"} />}
           </div>
         )}
 
@@ -300,6 +365,18 @@ export default function Notch() {
             <span className="hud-ico" style={{ color: hud.color }}><Ico n={hud.icon} s={19} w={2} fill={hud.icon === "bolt"} /></span>
             <span className="hud-text"><b>{hud.title}</b>{hud.sub && <small style={{ color: hud.color }}>{hud.sub}</small>}</span>
             {hud.progress !== undefined && <span className="hud-bar"><i style={{ width: `${hud.progress * 100}%`, background: hud.color }} /></span>}
+          </div>
+        )}
+
+        {/* ───── Voz ───── */}
+        {mode === "voice" && (
+          <div className={`c-wrap voice ${voice}`} key={voice}>
+            <span className="v-mic"><Ico n="mic" s={16} w={2.2} /></span>
+            <span className="hud-text"><b>{voice === "listening" ? "Escuchando…" : "Transcribiendo…"}</b>
+              <small>{voice === "listening" ? `Suelta ${s.hotkey}` : "en tu PC"}</small></span>
+            {voice === "listening"
+              ? <span className="v-level">{[0.55, 0.8, 1, 0.8, 0.55].map((k, i) => <i key={i} style={{ transform: `scaleY(${0.18 + Math.min(1, level * k * (0.8 + ((i * 37) % 5) / 10))})` }} />)}</span>
+              : <span className="v-spin" />}
           </div>
         )}
 
@@ -337,6 +414,11 @@ export default function Notch() {
                   <i /><span className="dot-ico"><Ico n={PAGE_ICON[p]} s={14} /></span>
                 </button>
               ))}
+              {(!sync.online || sync.pending > 0) && sync.session && (
+                <span className="sync-badge" title={sync.online ? "Subiendo cambios…" : `Sin conexión · ${sync.pending} cambio(s) se subirán al volver internet`}>
+                  <Ico n="cloud-off" s={13} />{sync.pending > 0 && sync.pending}
+                </span>
+              )}
               <button className={`gear ${upd.status === "available" ? "has-update" : ""}`} onClick={() => openSettings(upd.status === "available" ? "about" : undefined)}
                 title={upd.status === "available" ? `Actualizar a ${upd.version}` : "Ajustes"} aria-label="Ajustes"><Ico n="gear" s={14} /></button>
             </nav>

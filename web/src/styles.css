@@ -223,3 +223,11 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 .hero-icon { border-radius: 24px; box-shadow: 0 14px 40px rgba(255,140,60,.25); }
+
+/* v1.8: frase rápida y sin conexión */
+.quick-add.phrase { margin-bottom: 8px; }
+.phrase-preview { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; text-align: left; padding: 10px 14px; margin: -2px 0 12px;
+  border-radius: 12px; background: color-mix(in srgb, var(--orange) 14%, transparent); color: #ffc46b; font-weight: 600; font-size: 14.5px; animation: pop .25s ease both; }
+.phrase-preview span { color: #000; background: var(--orange); border-radius: 99px; padding: 4px 12px; font-size: 13px; flex: none; }
+.offline-bar { position: sticky; top: 0; z-index: 30; text-align: center; font-size: 13px; font-weight: 600; padding: calc(var(--safe-t) + 6px) 16px 6px;
+  background: color-mix(in srgb, var(--yellow) 18%, #111); color: var(--yellow); }

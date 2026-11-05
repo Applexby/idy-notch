@@ -92,3 +92,20 @@ export const getVolume = () => IS_TAURI
 export const setVolume = (level: number) => IS_TAURI
   ? invoke("set_volume", { level }).catch(() => {})
   : Promise.resolve(void (mockVol = level));
+
+// ───────── Voz local (whisper) y atajo global ─────────
+export interface VoiceStatus { bin: boolean; base: boolean; small: boolean; dir: string }
+export interface VoiceProgress { what: string; received: number; total: number }
+export const voiceConfigure = (config: { enabled: boolean; model: string; hotkey: string }) =>
+  invoke("voice_configure", { config });
+export const voiceStatus = () => invoke<VoiceStatus>("voice_status").then((v) => v ?? null).catch(() => null);
+export const voiceInstall = (model: string) => invoke<VoiceStatus>("voice_install", { model });
+export const voiceUninstall = () => invoke("voice_uninstall");
+export const voiceStart = () => invoke("voice_start").catch(() => {});
+export const voiceStop = () => invoke("voice_stop").catch(() => {});
+export const voiceCancel = () => invoke("voice_cancel").catch(() => {});
+export async function focusSelf() {
+  if (!IS_TAURI) return;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().setFocus().catch(() => {});
+}

@@ -4,7 +4,8 @@ import { COLORS, REPEAT_LABEL } from "@shared/types";
 import { fmtWhen, fromLocalInput, relTime, toLocalInput } from "@shared/time";
 import { useApp } from "../App";
 import { useNow, useTable } from "../hooks";
-import { supabase } from "../supabase";
+import { insert, remove as removeRow, update } from "../db";
+import { describe, parsePhrase } from "@shared/parse";
 import { ColorDots, Empty, GroupSelect, Icon, Row, Sheet, Toggle, toast } from "../ui";
 
 type Draft = Partial<Reminder> & { title: string; when: string };
@@ -31,8 +32,8 @@ export default function Reminders() {
       group_id: draft.group_id ?? null, timezone: tz, done: false,
     };
     const { error } = draft.id
-      ? await supabase.from("reminders").update(payload).eq("id", draft.id)
-      : await supabase.from("reminders").insert(payload);
+      ? update("reminders", draft.id, payload)
+      : insert("reminders", payload);
     if (error) return toast(error.message);
     setDraft(null);
     toast(draft.id ? "Recordatorio actualizado" : `Te avisaré ${relTime(payload.fire_at)}`);
@@ -40,20 +41,33 @@ export default function Reminders() {
 
   async function remove(r: Reminder) {
     patchLocal(r.id, null);
-    await supabase.from("reminders").delete().eq("id", r.id);
+    removeRow("reminders", r.id);
     setDraft(null);
   }
 
   async function snooze(r: Reminder, min: number) {
     const fire_at = new Date(Date.now() + min * 60e3).toISOString();
     patchLocal(r.id, { fire_at, next_fire_at: fire_at, done: false });
-    await supabase.from("reminders").update({ fire_at, done: false }).eq("id", r.id);
+    update("reminders", r.id, { fire_at, done: false });
     toast(`Pospuesto ${min} min`);
   }
 
   async function markDone(r: Reminder) {
     patchLocal(r.id, { done: true });
-    await supabase.from("reminders").update({ done: true }).eq("id", r.id);
+    update("reminders", r.id, { done: true });
+  }
+
+  // Barra rápida: escribe o dicta ("mañana a las 11 llamar a cliente")
+  const [quick, setQuick] = useState("");
+  const qp = quick.trim() ? parsePhrase(quick) : null;
+  function quickAdd() {
+    if (!qp) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima";
+    if (qp.kind === "note") insert("notes", { title: "", body: qp.title });
+    else if (qp.kind === "task" && !qp.at) insert("tasks", { title: qp.title });
+    else insert("reminders", { title: qp.title, fire_at: (qp.at ?? new Date(Date.now() + 36e5)).toISOString(), repeat: qp.repeat, alarm: qp.loud ?? true, timezone: tz });
+    toast(describe(qp));
+    setQuick("");
   }
 
   return (
@@ -64,6 +78,13 @@ export default function Reminders() {
           <Icon name="plus" size={22} stroke={2.4} />
         </button>
       </header>
+
+      <div className="quick-add phrase">
+        <Icon name="plus" size={18} />
+        <input placeholder="Escribe o dicta: mañana a las 11 llamar a cliente" value={quick} enterKeyHint="done"
+          onChange={(e) => setQuick(e.target.value)} onKeyDown={(e) => e.key === "Enter" && quickAdd()} />
+      </div>
+      {qp && <button className="phrase-preview" onClick={quickAdd}>{describe(qp)} <span>Crear</span></button>}
 
       {!loading && !upcoming.length && (
         <Empty icon="alarm" title="Nada pendiente" text="Crea un recordatorio y te llegará al iPhone y sonará en tu notch." />
