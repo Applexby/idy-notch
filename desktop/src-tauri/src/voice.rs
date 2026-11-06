@@ -474,9 +474,62 @@ fn regex_lite_strip(s: &str) -> String {
 
 // ───────── Atajo global (mantener pulsado = hablar, toque corto = escribir) ─────────
 
-pub fn on_shortcut(app: &AppHandle, pressed: bool) {
+/// Código de tecla virtual de Windows de la tecla principal del atajo ("Alt+Y" → 'Y').
+#[cfg(windows)]
+fn main_vk(hotkey: &str) -> Option<i32> {
+    let k = hotkey.rsplit('+').next()?.trim().to_ascii_uppercase();
+    let k = k.strip_prefix("KEY").unwrap_or(&k).to_string();
+    let k = k.strip_prefix("DIGIT").unwrap_or(&k).to_string();
+    if k.len() == 1 {
+        let c = k.chars().next()?;
+        if c.is_ascii_alphanumeric() {
+            return Some(c as i32);
+        }
+    }
+    if let Some(n) = k.strip_prefix('F').and_then(|n| n.parse::<i32>().ok()) {
+        if (1..=24).contains(&n) {
+            return Some(0x70 + n - 1);
+        }
+    }
+    match k.as_str() {
+        "SPACE" => Some(0x20),
+        "ENTER" => Some(0x0D),
+        "BACKQUOTE" => Some(0xC0),
+        "PERIOD" => Some(0xBE),
+        "COMMA" => Some(0xBC),
+        "SLASH" => Some(0xBF),
+        "SEMICOLON" => Some(0xBA),
+        _ => None,
+    }
+}
+
+fn released(app: &AppHandle) {
     let voice = app.state::<Arc<Voice>>().inner().clone();
     let enabled = voice.config.lock().unwrap().enabled;
+    let Some(t0) = voice.pressed_at.lock().unwrap().take() else { return };
+    let held = t0.elapsed();
+    if !enabled || held < Duration::from_millis(280) {
+        // Toque corto: abre el notch para escribir
+        if enabled {
+            cancel(app);
+        }
+        let _ = app.emit("voice-tap", ());
+    } else {
+        stop(app);
+    }
+}
+
+pub fn on_shortcut(app: &AppHandle, pressed: bool) {
+    let voice = app.state::<Arc<Voice>>().inner().clone();
+    let (enabled, hotkey) = {
+        let c = voice.config.lock().unwrap();
+        (c.enabled, c.hotkey.clone())
+    };
+    #[cfg(windows)]
+    let vk = main_vk(&hotkey);
+    #[cfg(not(windows))]
+    let vk: Option<i32> = { let _ = &hotkey; None };
+
     if pressed {
         {
             let mut p = voice.pressed_at.lock().unwrap();
@@ -488,17 +541,35 @@ pub fn on_shortcut(app: &AppHandle, pressed: bool) {
         if enabled {
             let _ = start(app);
         }
-    } else {
-        let Some(t0) = voice.pressed_at.lock().unwrap().take() else { return };
-        let held = t0.elapsed();
-        if !enabled || held < Duration::from_millis(350) {
-            // Toque corto: abre el notch para escribir
-            if enabled {
-                cancel(app);
-            }
-            let _ = app.emit("voice-tap", ());
-        } else if enabled {
-            stop(app);
+        // En Windows, el aviso de "soltar" del atajo a veces llega antes de tiempo
+        // (y IDY lo tomaba por un toque corto). Por eso vigilamos la tecla nosotros mismos.
+        #[cfg(windows)]
+        if let Some(vk) = vk {
+            let a = app.clone();
+            std::thread::spawn(move || {
+                use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+                let down = || unsafe { (GetAsyncKeyState(vk) as u16 & 0x8000) != 0 };
+                let t0 = Instant::now();
+                let mut up_count = 0;
+                loop {
+                    std::thread::sleep(Duration::from_millis(15));
+                    if down() {
+                        up_count = 0;
+                    } else {
+                        up_count += 1;
+                        if up_count >= 3 {
+                            break; // ~45 ms seguidos sin la tecla: se soltó de verdad
+                        }
+                    }
+                    if t0.elapsed() > Duration::from_secs(MAX_SECS + 2) {
+                        break;
+                    }
+                }
+                released(&a);
+            });
         }
+    } else if vk.is_none() {
+        // sin vigilancia propia: usa el aviso del sistema
+        released(app);
     }
 }

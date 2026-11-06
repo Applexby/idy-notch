@@ -198,6 +198,21 @@ section { padding-block: 110px; scroll-margin-top: 60px; }
 .opts > div { padding-block: 18px; border-top: 1px solid var(--rule); } .opts > div:first-child { border-top: 0; padding-top: 0; }
 .opts p { color: var(--soft); font-size: 14.5px; margin-top: 4px; }
 
+.say { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 56px; align-items: start; max-width: 960px; }
+@media (max-width: 820px) { .say { grid-template-columns: 1fr; gap: 34px; } }
+.say .how > div { padding-block: 16px; border-top: 1px solid var(--rule); } .say .how > div:first-child { border-top: 0; padding-top: 0; }
+.say .how p { color: var(--soft); font-size: 14.5px; margin-top: 4px; }
+kbd { font: 650 13px var(--body); padding: 2px 8px; border-radius: 7px; background: #1c1e28; box-shadow: inset 0 -2px 0 rgba(0,0,0,.5), inset 0 0 0 1px var(--rule); white-space: nowrap; }
+.ex { display: grid; gap: 0; border-radius: 18px; background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--rule); overflow: hidden; }
+.ex > div { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; padding: 13px 18px; border-top: 1px solid var(--rule); font-size: 14px; align-items: center; }
+.ex > div:first-child { border-top: 0; }
+.ex q { quotes: "«" "»"; color: var(--ink); }
+.ex span { color: var(--soft); display: flex; align-items: center; gap: 8px; }
+.ex i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (max-width: 560px) { .ex > div { grid-template-columns: 1fr; gap: 4px; } }
+.words { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.words span { font-size: 12.5px; padding: 3px 10px; border-radius: 99px; color: var(--soft); box-shadow: inset 0 0 0 1px var(--rule); }
+
 .news { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; max-width: 900px; }
 @media (max-width: 760px) { .news { grid-template-columns: 1fr; gap: 30px; } }
 .news h4 { margin: 0 0 6px; font: 600 15px var(--display); }
@@ -234,7 +249,7 @@ footer b { color: var(--ink); }
 
 <header class="top"><div class="wrap">
   <a class="logo" href="#"><img src="/icons/icon-192.png" alt="">IDY</a>
-  <nav aria-label="Secciones"><a href="#vista">Vista previa</a><a href="#funciones">Funciones</a><a href="#llama">La llama</a><a href="#personaliza">Personaliza</a><a href="#novedades">Novedades</a><a href="#descargar">Descargar</a></nav>
+  <nav aria-label="Secciones"><a href="#vista">Vista previa</a><a href="#funciones">Funciones</a><a href="#voz">Voz</a><a href="#llama">La llama</a><a href="#personaliza">Personaliza</a><a href="#novedades">Novedades</a><a href="#descargar">Descargar</a></nav>
   <a class="pill" href="https://web-mauve-five-n7g1wnmllz.vercel.app" target="_blank" rel="noopener">Abrir la web</a>
 </div></header>
 
@@ -274,9 +289,37 @@ footer b { color: var(--ink); }
       <div class="feat"><span class="ico" style="background:#ffb340"><svg viewBox="0 0 24 24"><path d="M3 13l2.5-7h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5Zm0 0h5l1 2h6l1-2h5"/></svg></span><h3>Estante</h3><p>Arrastra archivos, carpetas o textos al notch, o pégalos con Ctrl+V. Luego llévalos a un chat, un correo o una carpeta.</p></div>
       <div class="feat"><span class="ico" style="background:#30d158"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><h3>To-do con hora</h3><p>Apunta una tarea, ponle hora y duración, y el notch te avisa cuando empieza y cuando se acaba el tiempo.</p></div>
       <div class="feat"><span class="ico" style="background:#ffd60a;color:#2a2000"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13H5V3h1Zm9 0v4h4M8.5 12h7M8.5 16h5"/></svg></span><h3>Notas al vuelo</h3><p>Escribe una idea y sigue. Ábrela en grande para editarla, fijarla o borrarla. En la web, colores y listas como en Keep.</p></div>
-      <div class="feat"><span class="ico" style="background:#34c759"><svg viewBox="0 0 24 24"><path d="M13.5 2 5 13.5h6.5L10.5 22 19 10.5h-6.5L13.5 2Z"/></svg></span><h3>Batería y audífonos</h3><p>Un vistazo cuando conectas el cargador o tus audífonos Bluetooth. En el escritorio, un anillo te muestra cuánta batería queda.</p></div>
+      <div class="feat"><span class="ico" style="background:#ff453a"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-6 9a6 6 0 0 0 12 0M12 18v3"/></svg></span><h3>Dicta con Alt + Y</h3><p>Mantén el atajo, di «mañana a las 11 llamar a cliente» y suelta. Se transcribe en tu PC, sin internet, y se crea solo.</p></div>
+      <div class="feat"><span class="ico" style="background:#ff7a3d"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7M17 14l2 2 3-4"/></svg></span><h3>Escribe como hablas</h3><p>No hace falta elegir fecha ni tipo: IDY entiende si es recordatorio, alarma, aviso, nota o tarea, y para cuándo.</p></div>
+      <div class="feat"><span class="ico" style="background:#34c759"><svg viewBox="0 0 24 24"><path d="M13.5 2 5 13.5h6.5L10.5 22 19 10.5h-6.5L13.5 2Z"/></svg></span><h3>Batería y audífonos</h3><p>Un vistazo al conectar el cargador o tus audífonos. En el escritorio, un anillo con lo que queda, y aviso cuando baja del 20, 10 y 5 %.</p></div>
+      <div class="feat"><span class="ico" style="background:#64d2ff;color:#04202b"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.5A3.3 3.3 0 0 0 7 18ZM4 4l16 16"/></svg></span><h3>Funciona sin internet</h3><p>Crea, marca o borra sin conexión; todo se guarda y se sube solo cuando vuelve internet, en el PC y en la web.</p></div>
       <div class="feat"><span class="ico" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c2 .8 3 2.8 3 5.5"/></svg></span><h3>Grupos con amigos</h3><p>Crea un grupo y comparte su código. Un recordatorio puesto en el grupo le suena a todos.</p></div>
       <div class="feat"><span class="ico" style="background:#5e5ce6"><svg viewBox="0 0 24 24"><path d="M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Zm4 17h2"/></svg></span><h3>También en tu iPhone</h3><p>La misma app desde Safari, sin App Store. Recordatorios, notas, tareas y grupos, siempre al día con el notch.</p></div>
+    </div>
+  </div></section>
+
+  <section id="voz"><div class="wrap">
+    <div class="head"><h2>Habla o escribe. IDY entiende.</h2><p>Un atajo para todo: tócalo para escribir, mantenlo para dictar. Dilo como te salga.</p></div>
+    <div class="say">
+      <div class="how">
+        <div><h3>Toca <kbd>Alt</kbd> + <kbd>Y</kbd></h3><p>Se abre el notch con el cursor listo. Escribe la frase y pulsa Enter: verás antes lo que entendió.</p></div>
+        <div><h3>Mantén <kbd>Alt</kbd> + <kbd>Y</kbd></h3><p>Habla mientras lo mantienes y suelta. El notch muestra «Escuchando…», luego «Transcribiendo…» y te confirma lo que creó.</p></div>
+        <div><h3>La voz es tuya</h3><p>Usa Whisper dentro de tu PC: nada sale a internet. Solo se abre al transcribir, con prioridad baja, así no frena Premiere ni After Effects.</p></div>
+        <div><h3>Actívala una vez</h3><p>Ajustes › Voz y atajo: elige el modelo <b>Rápido</b> (≈60 MB) o <b>Preciso</b> (≈190 MB), tu micrófono, y usa «Probar voz». Ahí también cambias el atajo.</p></div>
+      </div>
+      <div>
+        <div class="ex">
+          <div><q>Hazme recordar a las 5 de la tarde que tengo reunión con Juan</q><span><i style="background:#ff9f0a"></i>Recordatorio · hoy 5:00 p. m.</span></div>
+          <div><q>Oye, ponme una alarma a las 6:30 de la mañana para ir al gimnasio</q><span><i style="background:#ff453a"></i>Alarma · mañana 6:30 a. m.</span></div>
+          <div><q>Pon un aviso a las 3 y media para sacar la ropa</q><span><i style="background:#64d2ff"></i>Aviso suave · 3:30 p. m.</span></div>
+          <div><q>Llamar a Dina, recuérdamelo a las 8 de la noche</q><span><i style="background:#ff9f0a"></i>Recordatorio · 8:00 p. m.</span></div>
+          <div><q>Todos los lunes a las 8 reunión de equipo</q><span><i style="background:#ff9f0a"></i>Se repite cada lunes</span></div>
+          <div><q>Actívame una tarea para revisar el render el viernes</q><span><i style="background:#0a84ff"></i>Tarea · viernes</span></div>
+          <div><q>Una nota que diga llamar al gasfitero</q><span><i style="background:#ffd60a"></i>Nota</span></div>
+          <div><q>Despiértame a las 6</q><span><i style="background:#ff453a"></i>Alarma · mañana 6:00 a. m.</span></div>
+        </div>
+        <div class="words" aria-label="Formas que entiende"><span>recuérdame</span><span>hazme recordar</span><span>no me dejes olvidar</span><span>ponme una alarma</span><span>avísame</span><span>anota</span><span>actívame una tarea</span><span>con el título…</span><span>en 20 minutos</span><span>pasado mañana</span><span>de lunes a viernes</span><span>a las 9 y 15</span><span>a las 3 menos cuarto</span></div>
+      </div>
     </div>
   </div></section>
 
@@ -285,7 +328,7 @@ footer b { color: var(--ink); }
     <div class="llama-show" id="llamas"></div>
     <div class="trio">
       <div><h3>Se hace a un lado</h3><p>Desaparece en pantalla completa y se vuelve una barrita fina sobre ventanas maximizadas, para no tapar la barra de direcciones.</p></div>
-      <div><h3>Tus cosas, sincronizadas</h3><p>Recordatorios, notas, tareas y grupos viajan con tu cuenta. Los archivos del Estante nunca salen de tu PC.</p></div>
+      <div><h3>Tus cosas, sincronizadas</h3><p>Recordatorios, notas, tareas y grupos viajan con tu cuenta, incluso si te quedas sin internet un rato. Los archivos del Estante nunca salen de tu PC.</p></div>
       <div><h3>Se actualiza solo</h3><p>Cuando hay una versión nueva, el notch te avisa. Un clic en Ajustes y se instala encima, sin desinstalar nada.</p></div>
     </div>
   </div></section>
@@ -301,30 +344,30 @@ footer b { color: var(--ink); }
         <div><h3>Iniciar con Windows</h3><p>IDY se abre solo cada vez que entras, así el notch siempre está ahí.</p></div>
         <div><h3>La llama</h3><p>Aparece cuando dejas el PC quieto un momento. Si prefieres ver la hora, apágala.</p></div>
         <div><h3>Notch mínimo y tamaño</h3><p>Vuélvelo una línea fina cuando no suena nada, o hazlo más grande en pantallas anchas. También eliges en qué monitor aparece.</p></div>
+        <div><h3>Voz y atajo</h3><p>Cambia <kbd>Alt</kbd> + <kbd>Y</kbd> por la combinación que prefieras, elige el micrófono y el modelo de voz, o borra los archivos de voz para liberar espacio.</p></div>
         <div><h3>Páginas a tu gusto</h3><p>Decide qué páginas ves y en qué orden, si se abre al pasar el mouse o con un clic, y qué avisos quieres.</p></div>
       </div>
     </div>
   </div></section>
 
   <section id="novedades"><div class="wrap">
-    <div class="head"><h2>Novedades de IDY 1.7.</h2><p>Una llama nueva, mejores avisos y el Estante que acepta de todo.</p></div>
+    <div class="head"><h2>Novedades de IDY 1.8.</h2><p>Habla con IDY, escríbele como hablas y úsalo aunque se caiga el internet.</p></div>
     <div class="news">
       <div>
         <h4>Qué hay de nuevo</h4>
-        <div class="it"><b>La llama de IDY</b><p>Nueva mascota e ícono: mira a los lados, duerme con sus zzz y saluda al volver.</p></div>
-        <div class="it"><b>Avisos de carga y audífonos</b><p>Un anillo con el porcentaje al conectar el cargador, y un aviso más claro al conectar tus audífonos.</p></div>
-        <div class="it"><b>Anillo de batería</b><p>En el escritorio, un círculo muestra cuánta batería queda; si está cargando, el rayo verde.</p></div>
-        <div class="it"><b>Recordatorios minuto a minuto</b><p>Escribe la hora exacta, usa la rueda o mantén pulsadas las flechas.</p></div>
-        <div class="it"><b>Música más completa</b><p>Adelanta arrastrando la barra, cambia el volumen y mira la letra con el color de la portada.</p></div>
-        <div class="it"><b>Estante para todo</b><p>Suelta archivos, carpetas o textos desde cualquier app, o pégalos con Ctrl+V.</p></div>
+        <div class="it"><b>Voz local con Alt + Y</b><p>Mantén el atajo, habla y suelta. Whisper transcribe en tu PC y se cierra al terminar.</p></div>
+        <div class="it"><b>Frases que se entienden solas</b><p>«Hazme recordar», «ponme una alarma», «avísame», «anota», «actívame una tarea», «con el título…»: dilo como quieras.</p></div>
+        <div class="it"><b>Atajo y micrófono a tu gusto</b><p>Cambia el atajo, elige el micrófono y prueba la voz antes de usarla, en Ajustes › Voz y atajo.</p></div>
+        <div class="it"><b>Modo sin conexión</b><p>Todo se guarda al instante y se sube solo al volver internet. El notch muestra una nube tachada con lo pendiente.</p></div>
+        <div class="it"><b>Aviso de batería baja</b><p>Al 20, 10 y 5 % el notch te avisa y la llama se pone preocupada hasta que conectas el cargador.</p></div>
+        <div class="it"><b>Barra rápida en la web</b><p>Escribe «mañana a las 11 llamar a cliente» arriba de Recordatorios y listo.</p></div>
       </div>
       <div>
         <h4>Arreglos</h4>
-        <div class="it"><p>Los Ajustes ya no se quedan en blanco al abrirlos desde el notch.</p></div>
-        <div class="it"><p>Soltar archivos desde el Explorador ya no muestra el símbolo de bloqueo.</p></div>
-        <div class="it"><p>La hora vuelve a verse en el escritorio; el notch distingue mejor una ventana maximizada.</p></div>
-        <div class="it"><p>El botón de letra recuerda si lo dejaste activado.</p></div>
-        <div class="box"><h3>Bueno saber</h3><p>En el iPhone las notificaciones llegan solo si instalas la web en la pantalla de inicio. En modo Silencio o Concentración, permite IDY para no perderte nada.</p></div>
+        <div class="it"><p>La transcripción ya no falla con ningún modelo, ni si tu usuario de Windows tiene tildes.</p></div>
+        <div class="it"><p>Mantener <kbd>Alt</kbd> + <kbd>Y</kbd> ya no se confunde a veces con un toque corto: siempre graba mientras lo sostienes.</p></div>
+        <div class="it"><p>Una tarea dicha con hora se queda como tarea, y «despiértame a las 6» es de mañana.</p></div>
+        <div class="box"><h3>Bueno saber</h3><p>La voz viene apagada: actívala una vez en Ajustes › Voz y atajo. Si al probar sale un aviso de «Visual C++», instálalo desde la web de Microsoft. En el iPhone las notificaciones llegan solo si instalas la web en la pantalla de inicio.</p></div>
       </div>
     </div>
   </div></section>
@@ -418,6 +461,9 @@ footer b { color: var(--ink); }
     ["Alarma", { w: 410, h: 112, r: 28, html: () => `<div class="v alarm"><span class="bell">${I.alarm}</span><div><small>Recordatorio · Los panas</small><strong>Fútbol de los jueves</strong><span class="bn">10 min</span><span class="bn w">Detener</span></div></div>` }],
     ["Audífonos", { w: 300, h: 50, r: 24, html: () => `<div class="v hud2"><span class="bt">${I.bt}</span><span class="txt"><b>AirBuds Pro</b><small>Conectado</small></span><span class="btb">${I.hp}</span></div>` }],
     ["Carga", { w: 300, h: 50, r: 24, html: () => `<div class="v hud2">${ring(70, "#30d158", true)}<span class="txt"><b>Cargando</b><small>Cargador conectado</small></span><span class="big">70%</span></div>` }],
+    ["Escuchando", { w: 300, h: 50, r: 24, html: () => `<div class="v hud2"><span style="width:28px;height:28px;border-radius:50%;background:#ff453a;display:grid;place-items:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-6 9a6 6 0 0 0 12 0M12 18v3"/></svg></span><span class="txt"><b>Escuchando…</b><small>Suelta Alt+Y</small></span><span style="display:flex;gap:3px;align-items:center;height:22px">${[.45,.8,1,.7,.4].map((k) => `<i style="width:3.5px;height:${Math.round(22*k)}px;border-radius:3px;background:#ff453a"></i>`).join("")}</span></div>` }],
+    ["Creado", { w: 340, h: 50, r: 24, html: () => `<div class="v hud2"><span style="color:#ff9f0a;display:grid">${I.alarm}</span><span class="txt"><b>Mañana 11:00 a. m. · Llamar a cliente</b><small>Listo</small></span></div>` }],
+    ["Batería baja", { w: 300, h: 50, r: 24, html: () => `<div class="v hud2">${ring(10, "#ff453a", false)}<span class="txt"><b>Batería baja</b><small>Conecta el cargador</small></span><span class="big" style="color:#ff453a">10%</span></div>` }],
     ["Llama", { w: 196, h: 30, r: 14, html: () => llama("awake") }],
   ];
   const map = Object.fromEntries(S);
