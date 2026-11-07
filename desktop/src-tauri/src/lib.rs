@@ -143,7 +143,16 @@ fn show_settings(app: &AppHandle, page: Option<String>) {
         .min_inner_size(680.0, 480.0)
         .decorations(false)
         .shadow(true)
-        .background_color(tauri::window::Color(28, 28, 30, 255))
+        // Ventana transparente con efecto acrílico (vidrio desenfocado) de Windows:
+        // solo la barra lateral lo deja ver; el panel de ajustes es opaco.
+        .transparent(true)
+        .background_color(tauri::window::Color(0, 0, 0, 0))
+        .effects(
+            tauri::window::EffectsBuilder::new()
+                .effect(tauri::window::Effect::Acrylic)
+                .color(tauri::window::Color(18, 18, 22, 60))
+                .build(),
+        )
         .resizable(true)
         .center()
         .build();
